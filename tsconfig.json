@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "lib": ["ES2019", "DOM"],
+        "target": "ES2019",
+        "strict": true,
+        "module": "ES2020",
+        "jsx": "react",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "preserveSymlinks": true,
+    }
+}

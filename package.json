@@ -1,0 +1,36 @@
+{
+  "name": "glgardens",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "env NODE_ENV=production rollup -c",
+    "watch": "rollup -c --watch"
+  },
+  "author": "",
+  "license": "SEE LICENSE IN .",
+  "devDependencies": {
+    "@babel/core": "^7.13.16",
+    "@babel/plugin-proposal-class-properties": "^7.13.0",
+    "@rollup/plugin-babel": "^5.3.0",
+    "@rollup/plugin-commonjs": "^18.0.0",
+    "@rollup/plugin-node-resolve": "^11.2.1",
+    "@rollup/plugin-typescript": "^8.2.1",
+    "babel": "^6.23.0",
+    "rollup": "^2.45.1",
+    "rollup-plugin-glslify": "^1.2.0",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-node-globals": "^1.4.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "tslib": "^2.2.0",
+    "typescript": "^4.2.4"
+  },
+  "dependencies": {
+    "gl-buffer": "^2.1.2",
+    "gl-fbo": "^2.0.5",
+    "gl-matrix": "^3.3.0",
+    "gl-shader": "^4.2.1",
+    "gl-texture2d": "^2.1.0",
+    "gl-vao": "^1.3.0"
+  }
+}
