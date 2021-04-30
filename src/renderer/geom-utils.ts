@@ -83,3 +83,16 @@ export class PlaneSubspace {
         return [t, intersection];
     }
 }
+
+/** Returns the distance at which the inverse square will be equal to the given value */
+export function invSquareDistance(value: number) {
+    if (value <= 0.) return Infinity;
+    return Math.sqrt(1 / value);
+}
+
+/** Returns the distance of point (x, y) to the box (bax, bay) -- (bbx, bby) */
+export function distanceToBox(bax: number, bay: number, bbx: number, bby: number, x: number, y: number) {
+    const dx = Math.min(Math.abs(bax - x), Math.abs(bbx - x));
+    const dy = Math.min(Math.abs(bay - y), Math.abs(bby - y));
+    return Math.hypot(dx, dy);
+}

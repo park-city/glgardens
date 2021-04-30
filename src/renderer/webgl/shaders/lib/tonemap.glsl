@@ -1,9 +1,3 @@
-precision highp float;
-
-uniform sampler2D u_texture;
-
-varying vec2 v_uv;
-
 // http://filmicworlds.com/blog/filmic-tonemapping-operators/
 float A = 0.15;
 float B = 0.50;
@@ -23,18 +17,16 @@ vec3 map_rgb(vec3 c) {
     return c * whiteScale;
 }
 float map_ch(float a) {
-    a = pow(a, 2.2);
+    a = pow(a, 1. / 2.2);
     return a;
 }
 
-void main() {
-    vec3 color = texture2D(u_texture, v_uv).rgb;
-
-    color = map_rgb(color);
-
-    color.r = map_ch(color.r);
-    color.g = map_ch(color.g);
-    color.b = map_ch(color.b);
-
-    gl_FragColor = vec4(color, 1.);
+vec3 tonemap(vec3 in_color) {
+    vec3 out_color = map_rgb(in_color);
+    out_color.r = map_ch(out_color.r);
+    out_color.g = map_ch(out_color.g);
+    out_color.b = map_ch(out_color.b);
+    return out_color;
 }
+
+#pragma glslify: export(tonemap)
