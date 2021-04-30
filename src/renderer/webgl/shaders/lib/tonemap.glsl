@@ -1,3 +1,4 @@
+// TODO: nicer tonemapping
 // http://filmicworlds.com/blog/filmic-tonemapping-operators/
 float A = 0.15;
 float B = 0.50;

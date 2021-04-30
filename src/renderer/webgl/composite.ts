@@ -5,10 +5,13 @@ import { setNormalAlphaBlending } from './gl-utils';
 import { GLVertexArray } from './gl-vao';
 import { GLBuffer, GLBufferType } from './gl-buffer';
 
+/** Handles compositing the scene on the screen. */
 export class Composite {
     ctx: Context;
+    /** Composite FBO to which the scene will be drawn. */
     composite: GLFramebuffer;
-    swap?: GLFramebuffer[];
+    /** Swap buffers used for bloom. */
+    bloomSwap?: GLFramebuffer[];
     quad: GLVertexArray;
 
     constructor(ctx: Context) {
@@ -31,7 +34,7 @@ export class Composite {
                 swap0.colorFormats = swap1.colorFormats = [floatFmt];
                 swap0.linearSample = true;
 
-                this.swap = [swap0, swap1];
+                this.bloomSwap = [swap0, swap1];
                 console.debug(`Composite: using format ${TextureFormat[floatFmt]}; enabling bloom`);
             } else {
                 console.debug(`Composite: using format ${TextureFormat[floatFmt]}`);
@@ -75,29 +78,29 @@ export class Composite {
 
         this.quad.bind();
 
-        if (this.swap) {
+        if (this.bloomSwap) {
             const swapWidth = gl.drawingBufferWidth / 8;
             const swapHeight = gl.drawingBufferHeight / 8;
-            this.swap[0].size[0] = swapWidth;
-            this.swap[1].size[0] = swapWidth;
-            this.swap[0].size[1] = swapHeight;
-            this.swap[1].size[1] = swapHeight;
+            this.bloomSwap[0].size[0] = swapWidth;
+            this.bloomSwap[1].size[0] = swapWidth;
+            this.bloomSwap[0].size[1] = swapHeight;
+            this.bloomSwap[1].size[1] = swapHeight;
 
-            this.swap[0].bind();
+            this.bloomSwap[0].bind();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             this.ctx.shaders.compositeBloomThres!.bind();
             this.composite.color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
-            this.swap[1].bind();
+            this.bloomSwap[1].bind();
             this.ctx.shaders.compositeBloomBlur!.bind();
             this.ctx.shaders.compositeBloomBlur!.setUniform('u_vert', 0);
-            this.swap[0].color[0].bind(0);
+            this.bloomSwap[0].color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
-            this.swap[0].bind();
+            this.bloomSwap[0].bind();
             this.ctx.shaders.compositeBloomBlur!.setUniform('u_vert', 1);
-            this.swap[1].color[0].bind(0);
+            this.bloomSwap[1].color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -107,7 +110,7 @@ export class Composite {
             gl.blendFunc(gl.ONE, gl.ONE);
 
             this.ctx.shaders.compositeBloomFinal!.bind();
-            this.swap[0].color[0].bind(0);
+            this.bloomSwap[0].color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
         } else {
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);

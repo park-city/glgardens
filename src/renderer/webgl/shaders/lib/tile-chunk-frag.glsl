@@ -1,5 +1,7 @@
+// Shared code for the tile chunk fragment shader.
+
 #pragma glslify: shade_tile = require('../lib/shade-tile.glsl')
-#ifndef FEATURE_FBO_FLOAT
+#ifndef HDR_COMPOSITE
 #pragma glslify: tonemap = require('../lib/tonemap.glsl')
 #endif
 
@@ -75,7 +77,7 @@ void light_fragment(
     }
     out_color.rgb += i_emission;
 
-#ifdef FEATURE_FBO_FLOAT
+#ifdef HDR_COMPOSITE
     out_tonemap = 1.;
 #else
     out_color.rgb = tonemap(out_color.rgb);

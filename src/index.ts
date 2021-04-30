@@ -1,3 +1,5 @@
+// super hacky test page
+
 import { BackingCanvas, GeometryType, NetgardensWebGLRenderer, TileTextureLayer } from './renderer';
 import { PlaneSubspace } from './renderer/geom-utils';
 import { mat4, quat, vec3, vec4 } from 'gl-matrix';

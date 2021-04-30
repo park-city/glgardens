@@ -3,6 +3,10 @@ precision highp float;
 precision highp sampler2DArray;
 
 #include "tile-chunk.glsl"
+
+#ifdef FEATURE_FBO_FLOAT
+#define HDR_COMPOSITE
+#endif
 #include "../lib/tile-chunk-frag.glsl"
 
 layout(std140) uniform UCamera { Camera u_camera; };

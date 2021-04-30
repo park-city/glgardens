@@ -1,3 +1,6 @@
 node_modules
-target
+target/*
 package-lock.json
+!target/*.html
+!target/*.png
+!target/*.csv

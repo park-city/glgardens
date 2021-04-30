@@ -1,13 +1,14 @@
 import { vec2, vec3 } from 'gl-matrix';
 import { Camera } from './camera';
 
+/** Types of backing contexts. */
 export enum BackingContextType {
     Canvas2D,
     WebGL,
     WebGL2OrWebGL,
 }
 
-/** A backing canvas for the renderer. Basically a wrapper around HTMLCanvasElement. */
+/** A backing context for the renderer, such as an HTML canvas. */
 export interface IBackingContext {
     /** Logical width. */
     readonly width: number;
@@ -32,8 +33,10 @@ export interface IBackingContext {
     isContextLost(): boolean;
 }
 
+/** The ID of a tile in map data. */
 export type TileTypeId = number;
 
+/** Material layers for map tiles. */
 export enum TileTextureLayer {
     Color = 'color',
     Normal = 'normal',
@@ -41,23 +44,39 @@ export enum TileTextureLayer {
     Material = 'material',
 }
 
+/** Types of 3D geometry for map tiles. */
 export enum GeometryType {
     Flat,
     CubeBack,
     CubeFront,
 }
 
+/** A zero-volume point light. */
 export interface PointLight {
     pos: vec3,
     radiance: vec3,
 }
 
+/** A tile type definition. */
 export interface TileType {
+    /**
+     * Animation frame offsets.
+     * This is a list of (x, y) coordinates in the tileset image indicating which tile to use for
+     * which animation frame.
+     * Note that the offsets are based on tiles and not pixels.
+     * Static tiles only have one entry.
+     */
     frames: vec2[];
+    /** Tile geometry. */
     geometry: GeometryType;
+    /**
+     * If not none, the tile will have a point light. The position is relative to the tile cube,
+     * i.e. (0, 0, 0) will be in the most negative corner of the cube.
+     */
     pointLight?: PointLight,
 }
 
+/** Defines a tileset. */
 export interface ITileset {
     /** Raw texture size. Should generally be the same across different tilesets. */
     readonly pixelSize: [number, number];
@@ -69,15 +88,14 @@ export interface ITileset {
     /** Returns the given texture layer if available. */
     getTexture(layer: TileTextureLayer): HTMLImageElement | HTMLCanvasElement | ImageBitmap | null;
 
-    /**
-     * Returns the given tile type if it's in this tile set.
-     */
+    /** Returns the given tile type if it's in this tile set. */
     getTileType(id: TileTypeId): TileType | null;
 }
 
 export type TileSetUpdateListener = () => void;
 export type TileMapUpdateListener = (x: number, y: number, width: number, height: number) => void;
 
+/** Defines a tile map. */
 export interface ITileMap {
     /**
      * Returns the tile set that contains the tile type with the given id, or null if it's not
@@ -99,7 +117,9 @@ export interface ITileMap {
     removeMapUpdateListener(listener: TileMapUpdateListener): void;
 }
 
+/** Abstract garden renderer interface. */
 export interface NetgardensRenderer {
+    // TODO: lighting controls
     camera: Camera;
     map: ITileMap;
     render(): void;

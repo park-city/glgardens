@@ -1,13 +1,19 @@
 #pragma glslify: DisneyMaterial = require('./disney-material.glsl')
 #pragma glslify: disneyBRDF = require('./disney-brdf.glsl', DisneyMaterial = DisneyMaterial)
 
-
+// For fragment shaders: shades the tile for one light.
 vec3 shade_tile(
+    // base color (sRGB)
     vec3 i_color,
+    // normal vector (normalized)
     vec3 i_normal,
+    // roughness (0 to 1)
     float i_roughness,
+    // light direction (normalized)
     vec3 i_light_dir,
+    // view direction (normalized)
     vec3 i_view_dir,
+    // light brightness
     vec3 i_light_radiance
 ) {
     DisneyMaterial dm;

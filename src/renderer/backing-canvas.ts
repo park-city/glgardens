@@ -1,6 +1,11 @@
 import { BackingContextType, IBackingContext } from './typedefs';
 
+/**
+ * A backing context that uses an HTML canvas. The canvas may be destroyed and recreated, so there's
+ * a wrapper div around it.
+ */
 export class BackingCanvas implements IBackingContext {
+    /** The wrapper div around the canvas. */
     node: HTMLDivElement;
     canvas!: HTMLCanvasElement;
     context: WebGL2RenderingContext | WebGLRenderingContext | CanvasRenderingContext2D | null = null;
@@ -27,11 +32,16 @@ export class BackingCanvas implements IBackingContext {
         window.removeEventListener('resize', this.didResize);
     }
 
+    /**
+     * Resizes the canvas to fit. Call this method when the node is resized. Window resizes are
+     * handled automatically.
+     */
     didResize = () => {
         this.canvas.width = this.canvas.offsetWidth * this.pixelScale;
         this.canvas.height = this.canvas.offsetHeight * this.pixelScale;
     };
 
+    /** Recreates the canvas element. */
     recreateCanvas() {
         if (this.canvas) {
             this.node.removeChild(this.canvas);
@@ -58,12 +68,11 @@ export class BackingCanvas implements IBackingContext {
             case BackingContextType.WebGL2OrWebGL:
                 this.context = this.canvas.getContext('webgl2') || this.canvas.getContext('webgl');
                 break;
+            default:
+                throw new Error('context type not supported');
         }
-        return !!this.context;
-    }
 
-    destroyContext() {
-        this.context = null;
+        return !!this.context;
     }
 
     isContextLost(): boolean {

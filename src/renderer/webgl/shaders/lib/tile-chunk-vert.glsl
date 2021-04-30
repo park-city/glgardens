@@ -1,3 +1,4 @@
+// Applies the chunk loading animation
 void tc_load_anim(in vec2 obj_pos, in vec4 load_anim, inout vec3 world_pos, out float presence) {
     vec2 i_origin = load_anim.xy;
     float i_time = load_anim.z;

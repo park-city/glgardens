@@ -1,6 +1,5 @@
 precision highp float;
 
-#undef FEATURE_FBO_FLOAT // we don't tonemap in an FBO in WebGL 1
 #include "../lib/tile-chunk-frag.glsl"
 
 uniform sampler2D u_tileset_color;
