@@ -12,10 +12,6 @@ export type ContextParams = {
     halfFloatLinear: boolean,
     /** If true, float textures can be sampled linearly. */
     floatLinear: boolean,
-    /** If true, depth textures can be used. */
-    depthTexture: boolean,
-    /** If true, the multi-draw extension is available. */
-    multiDraw: boolean,
 };
 
 export type Context = {

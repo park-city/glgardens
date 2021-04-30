@@ -12,5 +12,5 @@ void main() {
     float brightness = dot(color.rgb, vec3(0.21, 0.72, 0.07));
     float t = 1. / (1. + exp(5. - 2. * brightness));
 
-    out_color = t * color / 4.;
+    out_color = t * color / 3.;
 }

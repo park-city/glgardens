@@ -367,7 +367,7 @@ export class TileMapChunk {
      * Returns true if something was rendered.
      */
     render(ctx: FrameContext) {
-        if (!this.buffers) return false;
+        if (!this.buffers || !this.tileRenderBatches.length) return false;
         const { gl } = this.ctx;
 
         // shader setup

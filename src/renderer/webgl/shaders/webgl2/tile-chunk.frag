@@ -25,7 +25,7 @@ in vec3 v_view_dir;
 in float v_presence;
 
 layout(location = 0) out vec4 out_color;
-layout(location = 1) out float out_tonemap;
+layout(location = 1) out vec4 out_tonemap;
 
 void main() {
     vec3 tex_coord = vec3((v_uv + v_tile) / u_tileset_params.xy, int(u_tileset_params.z));
@@ -33,6 +33,8 @@ void main() {
     vec4 i_color = texture(u_tileset_color, tex_coord);
     vec4 i_normal_raw = texture(u_tileset_normal, tex_coord);
     vec4 i_material_raw = texture(u_tileset_material, tex_coord);
+
+    out_tonemap = vec4(0, 0, 0, i_color.a);
 
     i_color.a *= v_presence;
     if (i_color.a < 0.01) discard;
@@ -46,10 +48,10 @@ void main() {
             u_global_lighting,
             u_chunk_lighting,
             out_color,
-            out_tonemap
+            out_tonemap.r
         );
     } else {
         out_color = i_color;
-        out_tonemap = 0.;
+        out_tonemap.r = 0.;
     }
 }

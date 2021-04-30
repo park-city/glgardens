@@ -61,6 +61,7 @@ export class GLVertexArray {
         if (this.ext) {
             this.ext.bindVertexArrayOES(this.array);
             this.bindBuffers();
+            this.ext.bindVertexArrayOES(null);
         } else if (this.polyfill) {
             // nothing to do
         } else {

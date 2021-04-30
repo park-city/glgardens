@@ -93,8 +93,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         1: { frames: [[0, 1]] },
         2: { frames: [[0, 2]] },
         3: { frames: [[0, 3]] },
-        4: { frames: [[0, 4]], type: 'outer' },
-        5: { frames: [[0, 5]], type: 'flat' },
+        4: { frames: [[0, 4]], geometry: GeometryType.CubeFront },
+        5: { frames: [[0, 5]], geometry: GeometryType.Flat },
         6: { frames: [[0, 6]] },
         7: { frames: [[0, 7]], pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] } },
         8: {
@@ -111,8 +111,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         21: { frames: [[4, 1]] },
         22: { frames: [[4, 2]] },
         23: { frames: [[4, 3]] },
-        24: { frames: [[4, 4]], type: GeometryType.CubeFront },
-        25: { frames: [[4, 5]], type: GeometryType.Flat },
+        24: { frames: [[4, 4]], geometry: GeometryType.CubeFront },
+        25: { frames: [[4, 5]], geometry: GeometryType.Flat },
         26: { frames: [[4, 6]] },
         27: { frames: [[4, 7]], pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] } },
     };
@@ -190,8 +190,6 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         renderer = new NetgardensWebGLRenderer(backingCanvas, mapData, {
             useWebGL2: rendererSettings.type === 'gl2',
             useFboFloat: rendererSettings.float ? 'full' : 'none',
-            useFboDepth: false,
-            useMultiDraw: false,
         });
         renderer.render();
 
@@ -252,11 +250,11 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         renderer.tileMap.ambientLightRadiance = vec3.fromValues(0, 0.05, 0.2);
         const sunZ = Math.cos(t / 4);
         renderer.tileMap.sunLightDir = vec3.normalize(vec3.create(), [
+            -Math.sin(t / 4),
             Math.sin(t / 4),
-            1 - Math.sin(t / 4),
             sunZ,
         ]);
-        const sunR = Math.max(0, 1 - Math.exp(-7 * (sunZ + 0.5))) * 0;
+        const sunR = Math.max(0, 1 - Math.exp(-7 * (sunZ + 0.5)));
         renderer.tileMap.sunLightRadiance[0] = sunR * (6 * Math.max(0, sunZ) + 10);
         renderer.tileMap.sunLightRadiance[1] = sunR * (15 * Math.max(0, sunZ) + 7);
         renderer.tileMap.sunLightRadiance[2] = sunR * (25 * Math.max(0, sunZ));

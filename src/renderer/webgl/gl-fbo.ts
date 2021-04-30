@@ -22,15 +22,6 @@ export class GLFramebuffer {
         this.framebuffer = fb;
     }
 
-    resize(width: number, height: number) {
-        if (width !== this.size[0] || height !== this.size[1]) {
-            this.size[0] = width;
-            this.size[1] = height;
-
-            this.updateAttachments();
-        }
-    }
-
     bind() {
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.framebuffer);
         this.updateAttachments();

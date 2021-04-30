@@ -70,12 +70,14 @@ export class Composite {
         this.composite.bind();
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.enable(gl.DEPTH_TEST);
         setNormalAlphaBlending(gl);
     }
 
     present(ctx: FrameContext) {
         const { gl } = this.ctx;
 
+        gl.disable(gl.DEPTH_TEST);
         this.quad.bind();
 
         if (this.bloomSwap) {
@@ -93,6 +95,7 @@ export class Composite {
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
             this.bloomSwap[1].bind();
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             this.ctx.shaders.compositeBloomBlur!.bind();
             this.ctx.shaders.compositeBloomBlur!.setUniform('u_vert', 0);
             this.bloomSwap[0].color[0].bind(0);
@@ -103,19 +106,16 @@ export class Composite {
             this.bloomSwap[1].color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-            gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            this.composite.bind();
             gl.blendFunc(gl.ONE, gl.ONE);
-
             this.ctx.shaders.compositeBloomFinal!.bind();
             this.bloomSwap[0].color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
-        } else {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
         }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         this.ctx.shaders.compositeFinal.bind();
         this.composite.color[0].bind(0);
