@@ -136,6 +136,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
 
     const cybertestTiles = {
         100: { frames: [[0, 0]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [0, 40 * 2, 12 * 2] } },
+        101: { frames: [[1, 0]] },
     };
     const cybertest = {
         pixelSize: [images.cybertestColor.width, images.cybertestColor.height] as [number, number],
@@ -352,6 +353,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         </select>
         <button id="play-pause"></button>
         <button id="step-render">1</button>
+        <button id="capture-render">EXR</button>
         <input type="checkbox" id="renderer-float" />
         <label for="renderer-float">Float Composite</label>
         <input type="checkbox" id="ds-linear-normals" />
@@ -392,6 +394,21 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
 
         stepRender.addEventListener('click', () => {
             l();
+        });
+
+        debugBarSettings.querySelector('#capture-render')!.addEventListener('click', () => {
+            try {
+                const { size, pixels } = renderer.capture();
+                const exrBuffer = writeExr(size, pixels);
+                const a = document.createElement('a');
+                const objURL = URL.createObjectURL(new File([exrBuffer], 'capture.exr', { type: 'image/x-exr' }));
+                a.href = objURL;
+                a.download = 'capture.exr';
+                a.click();
+                URL.revokeObjectURL(objURL);
+            } catch (err) {
+                alert(err);
+            }
         });
     }
 
@@ -490,3 +507,128 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     console.error(err);
     alert('failed to load\n' + err);
 });
+
+function writeExr(size: [number, number], pixels: Float32Array) {
+    const buffers: ArrayBuffer[] = [];
+    const BUF_SIZE = 65536;
+    let buf = new ArrayBuffer(BUF_SIZE);
+    let bufView0 = new DataView(buf);
+    let cursor = 0;
+    let bufCursor = 0;
+    const pushBuf = () => {
+        buffers.push(new Uint8Array(buf).subarray(0, bufCursor));
+        bufCursor = 0;
+        buf = new ArrayBuffer(BUF_SIZE);
+        bufView0 = new DataView(buf);
+    };
+    const writeU8 = (b: number) => {
+        bufView0.setUint8(bufCursor, b);
+        cursor++;
+        bufCursor++;
+        if (bufCursor > buf.byteLength) pushBuf();
+    };
+    const writeU32 = (n: number) => {
+        const dv = new DataView(buf, bufCursor, 4);
+        dv.setUint32(0, n, true);
+        cursor += 4;
+        bufCursor += 4;
+    };
+    const writeU64 = (n: number) => {
+        writeU32(n);
+        writeU32(0);
+    };
+    const writeOneFloat = (f: number) => {
+        if (bufCursor > buf.byteLength - 4) pushBuf();
+        const dv = new DataView(buf, bufCursor, 4);
+        dv.setFloat32(0, f, true);
+        cursor += 4;
+        bufCursor += 4;
+    };
+    const writeCStr = (s: string) => {
+        const buf = new TextEncoder().encode(s);
+        for (const b of buf) writeU8(b);
+        writeU8(0);
+    };
+    // magic
+    [0x76, 0x2f, 0x31, 0x01].map(writeU8);
+    // version
+    writeU32(2);
+    // header
+    const writeAttrHeader = (name: string, type: string, size: number) => {
+        writeCStr(name);
+        writeCStr(type);
+        writeU32(size);
+    };
+    writeAttrHeader('channels', 'chlist', 18 * 4 + 1);
+    const writeCh = (name: string, pType: number, pLinear: number, xSampling: number, ySampling: number) => {
+        writeCStr(name);
+        writeU32(pType); // (0 uint, 1 half, 2 float)
+        writeU8(pLinear); // (0 or 1)
+        writeU8(0);
+        writeU8(0);
+        writeU8(0);
+        writeU32(xSampling);
+        writeU32(ySampling);
+    };
+    // each of these is size 18 (2+4+4*1+2*4)
+    writeCh('A', 2, 0, 1, 1);
+    writeCh('B', 2, 0, 1, 1);
+    writeCh('G', 2, 0, 1, 1);
+    writeCh('R', 2, 0, 1, 1);
+    writeU8(0); // end channel list
+    writeAttrHeader('compression', 'compression', 1);
+    writeU8(0); // no compression
+    writeAttrHeader('dataWindow', 'box2i', 16);
+    writeU32(0);
+    writeU32(0);
+    writeU32(size[0] - 1);
+    writeU32(size[1] - 1);
+    writeAttrHeader('displayWindow', 'box2i', 16);
+    writeU32(0);
+    writeU32(0);
+    writeU32(size[0] - 1);
+    writeU32(size[1] - 1);
+    writeAttrHeader('lineOrder', 'lineOrder', 1);
+    writeU8(0); // increasing Y
+    writeAttrHeader('pixelAspectRatio', 'float', 4);
+    writeOneFloat(1);
+    writeAttrHeader('screenWindowCenter', 'v2f', 8);
+    writeOneFloat(0);
+    writeOneFloat(0);
+    writeAttrHeader('screenWindowWidth', 'float', 4);
+    writeOneFloat(1);
+    writeU8(0); // end header
+    // line offset table
+    const offsetTableSize = size[1] * 8;
+    const pixelDataStart = cursor + offsetTableSize;
+    const scanLineSize = (size[0] * 16) + 4 + 4;
+    for (let y = 0; y < size[1]; y++) {
+        writeU64(pixelDataStart + y * scanLineSize);
+    }
+    pushBuf();
+    // scan line blocks
+    for (let y = 0; y < size[1]; y++) {
+        const scanline = new ArrayBuffer(scanLineSize);
+        const headerView = new DataView(scanline, 0);
+        headerView.setUint32(0, y, true);
+        headerView.setUint32(4, size[0] * 16, true);
+        const dataView = new DataView(scanline, 8);
+        const flippedY = size[1] - 1 - y;
+        let i = 0;
+        for (let c = 3; c >= 0; c--) {
+            for (let x = 0; x < size[0]; x++) {
+                const off = (flippedY * size[0] + x) * 4;
+                dataView.setFloat32(i, pixels[off + c], true);
+                i += 4;
+            }
+        }
+        buffers.push(scanline);
+    }
+    const finalBuffer = new Uint8Array(buffers.map(x => x.byteLength).reduce((a, b) => a + b, 0));
+    let i = 0;
+    for (const b of buffers) {
+        finalBuffer.set(new Uint8Array(b), i);
+        i += b.byteLength;
+    }
+    return finalBuffer;
+}

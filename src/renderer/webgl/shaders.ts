@@ -78,6 +78,7 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
             }),
             compositeBloomFinalFrag: cs('compositeBloomFinalFrag', GLShaderStageType.Fragment, {
                 u_color: GLUniformType.Sampler2,
+                u_alpha: GLUniformType.Float,
             }),
             compositeFinalFrag: cs('compositeFinalFrag', GLShaderStageType.Fragment, {
                 u_color: GLUniformType.Sampler2,

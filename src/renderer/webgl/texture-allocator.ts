@@ -65,6 +65,7 @@ export class Texture2D implements TextureArray {
     readonly gl: WebGLContext;
     readonly textures: WebGLTexture[];
     readonly format: TextureFormat;
+    readonly glInternalFormat: GLenum;
     readonly glFormat: GLenum;
     readonly glType: GLint;
     readonly size: vec2;
@@ -73,10 +74,19 @@ export class Texture2D implements TextureArray {
     lastUsedTime = Date.now();
     isDeleted = false;
 
-    private constructor(gl: WebGLContext, textures: WebGLTexture[], format: TextureFormat, glFormat: GLenum, glType: GLint, size: vec2) {
+    private constructor(
+        gl: WebGLContext,
+        textures: WebGLTexture[],
+        format: TextureFormat,
+        glInternalFormat: GLenum,
+        glFormat: GLenum,
+        glType: GLint,
+        size: vec2,
+    ) {
         this.gl = gl;
         this.textures = textures;
         this.format = format;
+        this.glInternalFormat = glInternalFormat;
         this.glFormat = glFormat;
         this.glType = glType;
         this.size = size;
@@ -130,7 +140,7 @@ export class Texture2D implements TextureArray {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         }
 
-        return new Texture2D(gl, textures, format, glFormat, glType, [width, height]);
+        return new Texture2D(gl, textures, format, glInternalFormat, glFormat, glType, [width, height]);
     }
 
     isTaken(index: number) {
@@ -161,6 +171,14 @@ export class Texture2D implements TextureArray {
             this.gl.bindTexture(this.gl.TEXTURE_2D, tex);
             this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, type);
         }
+    }
+
+    resize(width: number, height: number) {
+        if (width === this.size[0] && height === this.size[1]) return;
+        const { gl } = this;
+        gl.texImage2D(gl.TEXTURE_2D, 0, this.glInternalFormat, width, height, 0, this.glFormat, this.glType, null);
+        this.size[0] = width;
+        this.size[1] = height;
     }
 
     dispose() {

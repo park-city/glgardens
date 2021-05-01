@@ -5,7 +5,7 @@ import {
     NetgardensRenderer,
 } from '../typedefs';
 import { Camera } from '../camera';
-import { Context } from './context';
+import { Context, FrameContext } from './context';
 import { WebGLContext } from './typedefs';
 import { initShaders } from './shaders';
 import { isWebGL2 } from './gl-utils';
@@ -125,11 +125,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
     lastTime = Date.now();
     time = 0;
 
-    render() {
-        const dt = Math.min(1 / 30, (Date.now() - this.lastTime) / 1000);
-        this.time += dt;
-        this.lastTime = Date.now();
-
+    beginFrame(): FrameContext {
         if (!this.didInit || this.backingContext.isContextLost()) {
             this.initCtx();
         }
@@ -139,7 +135,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
         const projection = this.camera.getProjection(viewportSize[0], viewportSize[1]);
         const view = this.camera.getView();
 
-        const ctx = {
+        return {
             proj: projection,
             view,
             viewport: viewportSize,
@@ -147,10 +143,31 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
             camera: this.camera,
             time: this.time,
         };
+    }
+
+    render() {
+        const dt = Math.min(1 / 30, (Date.now() - this.lastTime) / 1000);
+        this.time += dt;
+        this.lastTime = Date.now();
+
+        const ctx = this.beginFrame();
 
         this.composite.begin(ctx);
         this.tileMap.render(ctx);
         this.composite.present(ctx);
+    }
+
+    capture() {
+        const ctx = this.beginFrame();
+        this.composite.begin(ctx);
+        this.tileMap.render(ctx);
+        let size: [number, number] | undefined;
+        let pixels: Float32Array | undefined;
+        this.composite.present(ctx, (s, p) => {
+            size = s;
+            pixels = p;
+        });
+        return { size: size!, pixels: pixels! };
     }
 
     dispose() {
