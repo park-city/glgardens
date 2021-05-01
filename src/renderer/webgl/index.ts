@@ -15,12 +15,16 @@ import { vec2 } from 'gl-matrix';
 import { Composite } from './composite';
 
 export type WebGLGraphicsSettings = {
-    useWebGL2: boolean,
-    useFboFloat: 'none' | 'half' | 'full',
+    useWebGL2?: boolean,
+    useFboFloat?: 'none' | 'half' | 'full',
+    useFloatNormals?: boolean,
+    useLinearNormals?: boolean,
 };
 const DEFAULT_SETTINGS: WebGLGraphicsSettings = {
     useWebGL2: true,
     useFboFloat: 'half',
+    useFloatNormals: false,
+    useLinearNormals: false,
 };
 
 export class NetgardensWebGLRenderer implements NetgardensRenderer {
@@ -34,11 +38,11 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
     tilesetMapping!: TilesetMapping;
     tileMap!: TileMap;
 
-    constructor(context: IBackingContext, map: ITileMap, settings = DEFAULT_SETTINGS) {
+    constructor(context: IBackingContext, map: ITileMap, settings: WebGLGraphicsSettings) {
         this.backingContext = context;
         this._map = map;
         this.camera = new Camera();
-        this.settings = settings;
+        this.settings = { ...DEFAULT_SETTINGS, ...settings };
     }
 
     get map() {
@@ -81,6 +85,9 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
                 : !!gl.getExtension('WEBGL_color_buffer_float')),
             halfFloatLinear: !!gl.getExtension('OES_texture_float_linear') || !!gl.getExtension('OES_texture_half_float_linear'),
             floatLinear: !!gl.getExtension('OES_texture_float_linear'),
+
+            useFloatNormals: !!settings.useFloatNormals,
+            useLinearNormals: !!settings.useLinearNormals,
         };
 
         const info = {

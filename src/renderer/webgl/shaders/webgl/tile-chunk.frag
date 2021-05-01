@@ -16,7 +16,9 @@ uniform vec3 u_cl_point_light_radiance[MAX_POINT_LIGHTS];
 
 varying vec2 v_uv;
 varying vec2 v_tile;
-varying vec3 v_world_pos;
+varying vec3 v_obj_pos;
+varying vec3 v_cube_pos;
+varying vec3 v_cube_size;
 varying vec3 v_view_dir;
 varying float v_presence;
 
@@ -30,7 +32,7 @@ void main() {
     i_color.a *= v_presence;
     if (i_color.a < 0.01) discard;
 
-    if (i_normal_raw.a > 0.) {
+    if (length(i_normal_raw.rgb) > 0.) {
         GlobalLighting global_lighting;
         global_lighting.ambient_radiance = u_gl_ambient_radiance;
         global_lighting.sun_dir = u_gl_sun_dir;
@@ -49,7 +51,9 @@ void main() {
 
         light_fragment(
             u_camera_pos,
-            v_world_pos,
+            v_obj_pos,
+            v_cube_pos,
+            v_cube_size,
             i_color,
             i_normal_raw,
             i_material_raw,

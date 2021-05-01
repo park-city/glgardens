@@ -6,8 +6,7 @@ float C = 0.10;
 float D = 0.20;
 float E = 0.02;
 float F = 0.30;
-// float W = 11.2;
-float W = 4.2;
+float W = 11.2;
 vec3 uc2t(vec3 x) {
     return ((x * (A * x + vec3(C) * B) + vec3(D) * E) / (x * (A * x + vec3(B)) + vec3(D) * F)) - vec3(E / F);
 }

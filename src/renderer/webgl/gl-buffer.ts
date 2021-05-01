@@ -16,6 +16,7 @@ export class GLBuffer {
     buffer: WebGLBuffer;
     type: GLBufferType;
     scalarType: GLuint | null = null;
+    scalarTypeSize = 0;
     usage = GLBufferUsage.StaticDraw;
 
     constructor(gl: WebGLContext, type: GLBufferType) {
@@ -53,12 +54,16 @@ export class GLBuffer {
     setData(data: ArrayBuffer | ArrayBufferView) {
         if (data instanceof Float32Array) {
             this.scalarType = this.gl.FLOAT;
+            this.scalarTypeSize = 4;
         } else if (data instanceof Uint8Array) {
             this.scalarType = this.gl.UNSIGNED_BYTE;
+            this.scalarTypeSize = 1;
         } else if (data instanceof Uint16Array) {
             this.scalarType = this.gl.UNSIGNED_SHORT;
+            this.scalarTypeSize = 2;
         } else if (data instanceof Uint32Array) {
             this.scalarType = this.gl.UNSIGNED_INT;
+            this.scalarTypeSize = 4;
         } else {
             this.scalarType = null;
         }

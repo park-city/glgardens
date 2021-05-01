@@ -48,9 +48,13 @@ export class Tileset {
         this.texColor?.dispose();
         this.texNormal?.dispose();
         this.texMaterial?.dispose();
+
+        const normalTexFormat = this.ctx.params.useFloatNormals
+            ? TextureFormat.RGBA16F : TextureFormat.RGBA8;
+
         const allocated = this.allocator.parallelAllocate([
             [this.data.pixelSize[0], this.data.pixelSize[1], TextureFormat.RGBA8],
-            [this.data.pixelSize[0], this.data.pixelSize[1], TextureFormat.RGBA8],
+            [this.data.pixelSize[0], this.data.pixelSize[1], normalTexFormat],
             [this.data.pixelSize[0], this.data.pixelSize[1], TextureFormat.RGBA8],
         ]);
         this.texColor = allocated[0];
@@ -62,6 +66,10 @@ export class Tileset {
         if (color) this.texColor.update(color);
         if (normal) this.texNormal.update(normal);
         if (material) this.texMaterial.update(material);
+
+        if (this.ctx.params.useLinearNormals && (!this.ctx.params.useFloatNormals || this.ctx.params.halfFloatLinear)) {
+            this.texNormal.array.setMagFilter(this.ctx.gl.LINEAR);
+        }
     }
 
     deallocate() {

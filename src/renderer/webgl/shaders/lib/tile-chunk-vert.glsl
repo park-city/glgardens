@@ -1,5 +1,5 @@
 // Applies the chunk loading animation
-void tc_load_anim(in vec2 obj_pos, in vec4 load_anim, inout vec3 world_pos, out float presence) {
+void tc_load_anim(in vec2 obj_pos, in vec4 load_anim, inout float world_pos_z, out float presence) {
     vec2 i_origin = load_anim.xy;
     float i_time = load_anim.z;
     float i_extravagance = load_anim.w;
@@ -15,9 +15,9 @@ void tc_load_anim(in vec2 obj_pos, in vec4 load_anim, inout vec3 world_pos, out 
     float dz = -pow(3., 1.6 * t) + pow(3., 0.7 * t);
 
     // scale tile a bit
-    world_pos.z *= 1. + max(-0.5, dz) * i_extravagance;
+    world_pos_z *= 1. + max(-0.5, dz) * i_extravagance;
     // offset tile a bit
-    world_pos.z += dz * (i_extravagance * 0.5 + 0.5);
+    world_pos_z += dz * (i_extravagance * 0.5 + 0.5);
 
     presence = mix(
         clamp(1. - t, 0., 1.),

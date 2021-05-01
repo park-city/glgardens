@@ -75,8 +75,9 @@ export class GLVertexArray {
     draw(mode: GLenum, offset: GLsizei, count: GLintptr) {
         if (this.buffers.elementBuffer) {
             const type = this.buffers.elementBuffer.scalarType;
+            const typeSize = this.buffers.elementBuffer.scalarTypeSize;
             if (!type) throw new Error('Non-scalar buffer used as element buffer');
-            this.gl.drawElements(mode, count, type, offset);
+            this.gl.drawElements(mode, count, type, offset * typeSize);
         } else {
             this.gl.drawArrays(mode, offset, count);
         }

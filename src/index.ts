@@ -54,6 +54,9 @@ const imagePaths = {
     centralPark: 'central-park 2.png',
     centralParkNormal: 'central-park 2-normal.png',
     centralParkMaterial: 'central-park 2-material.png',
+    cybertestColor: 'cybertest-color.png',
+    cybertestNormal: 'cybertest-normal.png',
+    cybertestMaterial: 'cybertest-material.png',
 };
 const images = (() => {
     const promises = [];
@@ -131,6 +134,24 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         },
     };
 
+    const cybertestTiles = {
+        100: { frames: [[0, 0]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [0, 40 * 2, 12 * 2] } },
+    };
+    const cybertest = {
+        pixelSize: [images.cybertestColor.width, images.cybertestColor.height] as [number, number],
+        textureSize: [4, 4] as [number, number],
+        tileTypes: Object.keys(cybertestTiles).map(x => +x),
+        getTexture(layer: TileTextureLayer) {
+            if (layer === TileTextureLayer.Color) return images.cybertestColor;
+            if (layer === TileTextureLayer.Normal) return images.cybertestNormal;
+            if (layer === TileTextureLayer.Material) return images.cybertestMaterial;
+            return null;
+        },
+        getTileType(id: number) {
+            return (cybertestTiles as any)[id] || null;
+        },
+    };
+
     const delay = 1000;
     const dcSize = 32;
 
@@ -141,6 +162,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     return {
         getTileset: (id: number) => {
             if (id.toString() in centralParkTiles) return centralPark;
+            if (id.toString() in cybertestTiles) return cybertest;
             return null;
         },
         getTile: (x: number, y: number) => {
@@ -182,12 +204,15 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     let rendererSettings = {
         type: hasWebGL2 ? 'gl2' : 'gl1',
         float: hasFloatFBO,
+        useFloatNormals: false,
+        useLinearNormals: false,
     };
 
     let renderer: NetgardensWebGLRenderer;
     const makeRenderer = () => {
         if (renderer) renderer.dispose();
         renderer = new NetgardensWebGLRenderer(backingCanvas, mapData, {
+            ...rendererSettings,
             useWebGL2: rendererSettings.type === 'gl2',
             useFboFloat: rendererSettings.float ? 'full' : 'none',
         });
@@ -325,10 +350,12 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
             <option value="gl1">WebGL</option>
             ${hasWebGL2 ? '<option value="gl2" selected>WebGL 2</option>' : ''}
         </select>
-        <input type="checkbox" id="renderer-float" />
-        <label for="renderer-float">Use float</label>
         <button id="play-pause"></button>
         <button id="step-render">1</button>
+        <input type="checkbox" id="renderer-float" />
+        <label for="renderer-float">Float Composite</label>
+        <input type="checkbox" id="ds-linear-normals" />
+        <label for="ds-linear-normals">Smooth Normals</label>
         `;
 
         const rendererType = debugBarSettings.querySelector('#renderer-type')! as HTMLSelectElement;
@@ -337,13 +364,18 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
             makeRenderer();
         });
 
-        const rendererFloat = debugBarSettings.querySelector('#renderer-float')! as HTMLInputElement;
-        if (!hasFloatFBO) rendererFloat.disabled = true;
-        else rendererFloat.checked = true;
-        rendererFloat.addEventListener('change', () => {
-            rendererSettings.float = rendererFloat.checked;
-            makeRenderer();
-        });
+        const rendererCheckbox = (id: string, setting: keyof typeof rendererSettings, enabled: boolean, checked: boolean) => {
+            const chk = debugBarSettings.querySelector(id)! as HTMLInputElement;
+            chk.disabled = !enabled;
+            chk.checked = checked;
+            chk.addEventListener('change', () => {
+                (rendererSettings as any)[setting] = chk.checked;
+                makeRenderer();
+            });
+        }
+
+        rendererCheckbox('#renderer-float', 'float', hasFloatFBO, hasFloatFBO);
+        rendererCheckbox('#ds-linear-normals', 'useLinearNormals', true, false);
 
         const pi = ['>', '||'];
         const playPause = debugBarSettings.querySelector('#play-pause')!;

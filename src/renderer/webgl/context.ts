@@ -12,6 +12,11 @@ export type ContextParams = {
     halfFloatLinear: boolean,
     /** If true, float textures can be sampled linearly. */
     floatLinear: boolean,
+
+    /** If true, normal textures will be sampled linearly. */
+    useLinearNormals: boolean,
+    /** If true, normal textures will be float textures. */
+    useFloatNormals: boolean,
 };
 
 export type Context = {

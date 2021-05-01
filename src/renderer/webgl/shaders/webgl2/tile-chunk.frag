@@ -20,7 +20,9 @@ uniform sampler2DArray u_tileset_material;
 
 in vec2 v_uv;
 in vec2 v_tile;
-in vec3 v_world_pos;
+in vec3 v_obj_pos;
+in vec3 v_cube_pos;
+in vec3 v_cube_size;
 in vec3 v_view_dir;
 in float v_presence;
 
@@ -38,10 +40,13 @@ void main() {
 
     i_color.a *= v_presence;
     if (i_color.a < 0.01) discard;
-    if (i_normal_raw.a > 0.) {
+
+    if (length(i_normal_raw.rgb) > 0.) {
         light_fragment(
             u_camera.pos,
-            v_world_pos,
+            v_obj_pos,
+            v_cube_pos,
+            v_cube_size,
             i_color,
             i_normal_raw,
             i_material_raw,

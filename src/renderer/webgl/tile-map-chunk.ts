@@ -127,7 +127,7 @@ export class TileMapChunk {
 
                 for (let i = 0; i < geomInfo.vertCount; i++) {
                     aTileData.push(0, 0);
-                    aObjPosData.push(x, y);
+                    aObjPosData.push(x, y, z);
                 }
 
                 if (tileType.pointLight) {
@@ -172,7 +172,7 @@ export class TileMapChunk {
             { buffer: aPos, size: 3 },
             { buffer: aUv, size: 2 },
             { buffer: aTile, size: 2 },
-            { buffer: aObjPos, size: 2 },
+            { buffer: aObjPos, size: 3 },
         ]);
 
         this.buffers = { vao, index, aPos, aUv, aTile, aObjPos };

@@ -42,7 +42,7 @@ export class TextureHandle {
     }
 }
 
-const TEX_ARRAY_SIZE = 16;
+const TEX_ARRAY_SIZE = 8; // if this value is too high you get very strange bugs
 const TEX_MIP_LEVELS = 4;
 
 interface TextureArray {
@@ -58,6 +58,7 @@ interface TextureArray {
     bind(slot: number, index: number): void;
     update(index: number, data: TexImageSource): void;
     dispose(): void;
+    setMagFilter(type: GLuint): void;
 }
 
 export class Texture2D implements TextureArray {
@@ -155,6 +156,13 @@ export class Texture2D implements TextureArray {
         this.gl.generateMipmap(this.gl.TEXTURE_2D);
     }
 
+    setMagFilter(type: GLuint) {
+        for (const tex of this.textures) {
+            this.gl.bindTexture(this.gl.TEXTURE_2D, tex);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, type);
+        }
+    }
+
     dispose() {
         this.isDeleted = true;
         for (const texture of this.textures) {
@@ -190,6 +198,11 @@ class Texture2DArray implements TextureArray {
                 glStorageFormat = gl.RGBA8;
                 glFormat = gl.RGBA;
                 glType = gl.UNSIGNED_BYTE;
+                break;
+            case TextureFormat.RGBA16F:
+                glStorageFormat = gl.RGBA16F;
+                glFormat = gl.RGBA;
+                glType = gl.HALF_FLOAT;
                 break;
             default:
                 throw new Error('Texture format not implemented');
@@ -241,6 +254,11 @@ class Texture2DArray implements TextureArray {
             data,
         );
         this.gl.generateMipmap(this.gl.TEXTURE_2D_ARRAY);
+    }
+
+    setMagFilter(type: GLuint) {
+        this.gl.bindTexture(this.gl.TEXTURE_2D_ARRAY, this.texture);
+        this.gl.texParameteri(this.gl.TEXTURE_2D_ARRAY, this.gl.TEXTURE_MAG_FILTER, type);
     }
 
     dispose() {
