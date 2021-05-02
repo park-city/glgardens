@@ -1,5 +1,6 @@
 #ifndef TILE_CHUNK_LIGHTING
 #define TILE_CHUNK_LIGHTING
+#define MAX_POINT_LIGHTS 4
 
 struct GlobalLighting {
     vec3 ambient_radiance;
@@ -12,7 +13,7 @@ struct PointLight {
 };
 struct ChunkLighting {
     int point_light_count;
-    PointLight point_lights[16];
+    PointLight point_lights[MAX_POINT_LIGHTS];
 };
 
 #endif

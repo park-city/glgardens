@@ -18,7 +18,7 @@ export class Tileset {
     }
 
     get pixelSize() {
-        return this.texColor?.size;
+        return this.data.pixelSize;
     }
     get size() {
         return this.data.textureSize;

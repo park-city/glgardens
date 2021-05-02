@@ -1,7 +1,5 @@
 import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 
-// TODO: fewer arbitrary constants
-
 export class Camera {
     position = vec3.create();
     rotation = quat.create();
@@ -9,10 +7,10 @@ export class Camera {
     clipFar = 200;
     perspective = 0;
     fov = Math.PI / 3;
-    orthoScale = 0.25;
+    orthoScale = 32;
 
     get actualOrthoScale() {
-        return 128 * this.orthoScale;
+        return this.orthoScale;
     }
 
     getProjection(width: number, height: number): mat4 {

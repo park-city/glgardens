@@ -24,6 +24,8 @@ export interface Shaders {
     tileChunk: GLShader,
 }
 
+export const MAX_POINT_LIGHTS = 4;
+
 export const UNIFORM_BLOCK_BINDING = {
     UCamera: 0,
     UGlobalLighting: 1,
@@ -50,18 +52,21 @@ export const UNIFORM_BLOCKS = {
         point_lights: [{
             pos: GLUBIValue.Vec3,
             radiance: GLUBIValue.Vec3,
-        }, 16] as [GLUBIElement, number],
+        }, MAX_POINT_LIGHTS] as [GLUBIElement, number],
     },
 };
 
 type UniformBindings = { [name: string]: GLUniformValue };
 
 export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
-    if (isWebGL2(gl)) {
-        const prelude = [
-            (params.fboFloat || params.fboHalfFloat) && '#define FEATURE_FBO_FLOAT 1',
-        ].filter(x => x).join('\n');
+    const isGL2 = isWebGL2(gl);
 
+    const prelude = [
+        (isGL2 && (params.fboFloat || params.fboHalfFloat)) && '#define FEATURE_FBO_FLOAT 1',
+        (params.enablePointLights) && '#define FEATURE_POINT_LIGHTS 1',
+    ].filter(x => x).join('\n');
+
+    if (isGL2) {
         const cs = (n: string, s: GLShaderStageType, u: GLShaderUniforms) => {
             const source = gl2Shaders[n].replace(/(#version .*\n)/, '$1' + prelude + '\n');
             return new GLShaderStage(gl, n, s, source, u);
@@ -127,10 +132,11 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_tileset_normal: 1,
                 u_tileset_material: 2,
             }),
-        }
+        };
     } else {
         const cs = (n: string, s: GLShaderStageType, u: GLShaderUniforms) => {
-            return new GLShaderStage(gl, n, s, gl1Shaders[n], u);
+            const source = prelude + '\n' + gl1Shaders[n];
+            return new GLShaderStage(gl, n, s, source, u);
         };
 
         const stages = {

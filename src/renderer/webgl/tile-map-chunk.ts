@@ -6,7 +6,7 @@ import { Tileset } from './tile-map-tileset';
 import { GLBuffer, GLBufferType, GLUniformBlockData, GLUniformBuffer } from './gl-buffer';
 import { GLVertexArray } from './gl-vao';
 import { PlaneSubspace } from '../geom-utils';
-import { UNIFORM_BLOCKS } from './shaders';
+import { MAX_POINT_LIGHTS, UNIFORM_BLOCKS } from './shaders';
 
 export const CHUNK_SIZE = 8;
 const PROJECTION_ANGLE = 60 / 180 * Math.PI;
@@ -207,11 +207,11 @@ export class TileMapChunk {
         // TODO: support for more than 16 lights
         const allLights = [];
         for (const light of this.pointLights) {
-            if (allLights.length >= 16) break;
+            if (allLights.length >= MAX_POINT_LIGHTS) break;
             allLights.push(light as unknown as GLUniformBlockData);
         }
         for (const light of this.externalPointLights) {
-            if (allLights.length >= 16) break;
+            if (allLights.length >= MAX_POINT_LIGHTS) break;
             allLights.push(light as unknown as GLUniformBlockData);
         }
 
@@ -220,13 +220,13 @@ export class TileMapChunk {
             buf.bind();
 
             buf.setUniformData({
-                point_light_count: Math.min(allLights.length, 16),
+                point_light_count: Math.min(allLights.length, MAX_POINT_LIGHTS),
                 point_lights: allLights,
             });
         } else {
             const previous = this.pointLightUniformValues;
-            const pos = previous?.pos || new Float32Array(16 * 3);
-            const rad = previous?.rad || new Float32Array(16 * 3);
+            const pos = previous?.pos || new Float32Array(MAX_POINT_LIGHTS * 3);
+            const rad = previous?.rad || new Float32Array(MAX_POINT_LIGHTS * 3);
             for (let i = 0; i < allLights.length; i++) {
                 const l = allLights[i] as unknown as PointLight;
                 pos[i * 3] = l.pos[0];
@@ -368,6 +368,12 @@ export class TileMapChunk {
      */
     render(ctx: FrameContext) {
         if (!this.buffers || !this.tileRenderBatches.length) return false;
+
+        this.renderContents();
+        return true;
+    }
+
+    private renderContents() {
         const { gl } = this.ctx;
 
         // shader setup
@@ -407,8 +413,6 @@ export class TileMapChunk {
             buffers.vao.draw(gl.TRIANGLES, renderBatch.indexPos, renderBatch.indexCount);
         }
         buffers.vao.unbind();
-
-        return true;
     }
 
     deleteBuffers() {

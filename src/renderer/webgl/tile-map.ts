@@ -327,6 +327,9 @@ export class TileMap {
 
         let screenIsEmpty = true;
 
+        // chunks are always drawn in order!
+        this.ctx.gl.disable(this.ctx.gl.DEPTH_TEST);
+
         for (let dy = -radius; dy <= radius; dy++) {
             for (let dx = -radius; dx <= radius; dx++) {
                 if (Math.hypot(dx, dy) > radius + 1) continue;
@@ -340,6 +343,8 @@ export class TileMap {
                 if (didRender) screenIsEmpty = false;
             }
         }
+
+        this.ctx.gl.enable(this.ctx.gl.DEPTH_TEST);
 
         if (screenIsEmpty) {
             for (let dy = -radius; dy <= radius; dy++) {

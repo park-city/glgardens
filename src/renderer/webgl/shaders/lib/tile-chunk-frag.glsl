@@ -5,7 +5,6 @@
 #pragma glslify: tonemap = require('../lib/tonemap.glsl')
 #endif
 
-#define MAX_POINT_LIGHTS 16
 #define LIGHT_CULL_EPSILON 0.3
 
 #include "tile-chunk-lighting.glsl"
@@ -28,10 +27,15 @@ vec3 shade_tile_ambient(vec3 i_color, vec3 i_light) {
 }
 
 float PROJECTION_ANGLE = 1.0471975511965976; // 60°
-void adjust_cube_depth(inout vec3 cube_pos, float i_z) {
+vec3 get_view_ray() {
     vec3 view_ray = normalize(vec3(-1, -1, 0));
     view_ray.z = -cos(PROJECTION_ANGLE);
     view_ray.xy *= sin(PROJECTION_ANGLE);
+    return view_ray;
+}
+
+void adjust_cube_depth(inout vec3 cube_pos, float i_z) {
+    vec3 view_ray = get_view_ray();
 
     float ray_dxy = dot(view_ray, normalize(vec3(-1, -1, 0)));
     float ray_dz = dot(view_ray, vec3(0, 0, 1));
@@ -43,6 +47,9 @@ void adjust_cube_depth(inout vec3 cube_pos, float i_z) {
 }
 
 void light_fragment(
+#ifdef SET_FRAG_DEPTH
+    in mat4 i_proj_view,
+#endif
     in vec3 i_camera_pos,
     in vec3 i_obj_pos,
     in vec3 i_cube_pos,
@@ -61,13 +68,29 @@ void light_fragment(
     if (i_z < 1.99) {
         // z data available
         adjust_cube_depth(cube_pos, i_z);
+
+#ifdef SET_FRAG_DEPTH
+        // https://stackoverflow.com/a/12904072
+        float d_near = gl_DepthRange.near;
+        float d_far = gl_DepthRange.far;
+        vec4 clip_space_pos = i_proj_view * vec4(i_obj_pos + cube_pos * i_cube_size, 1);
+        float ndc_depth = clip_space_pos.z / clip_space_pos.w;
+        gl_FragDepth = (((d_far - d_near) * ndc_depth) + d_near + d_far) / 2.;
+#endif
+    } else {
+#ifdef SET_FRAG_DEPTH
+        gl_FragDepth = gl_FragCoord.z;
+#endif
     }
 
     vec3 i_world_pos = i_obj_pos + cube_pos * i_cube_size;
 
     // lighting enabled
-    // FIXME: incorrect for orthographic projection
-    vec3 view_dir = normalize(i_camera_pos - i_world_pos);
+    vec3 view_ray = get_view_ray();
+    vec3 view_dir = normalize(-view_ray);
+#ifdef false
+    view_dir = normalize(i_camera_pos - i_world_pos);
+#endif
 
     vec3 i_normal = read_normal(i_normal_raw);
     vec3 i_emission = (exp(i_material_raw.xyz) - vec3(1.)) * 32.;
@@ -88,6 +111,7 @@ void light_fragment(
         global_lighting.sun_radiance
     );
 
+#ifdef FEATURE_POINT_LIGHTS
     // point lights
     for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
         if (i >= chunk_lighting.point_light_count) break;
@@ -99,15 +123,25 @@ void light_fragment(
 
         light_radiance *= max(0., 1. - exp(-5. * (lr_max - LIGHT_CULL_EPSILON)));
 
-        if (abs(lr_max - LIGHT_CULL_EPSILON) < 0.04) continue;
         out_color.rgb += shade_tile(i_color.rgb, i_normal, i_roughness, light_dir, view_dir, light_radiance);
     }
+#endif
     out_color.rgb += i_emission;
 
 #ifdef HDR_COMPOSITE
     out_tonemap = 1.;
 #else
     out_color.rgb = tonemap(out_color.rgb);
+    out_tonemap = 0.;
+#endif
+
+#ifdef DEBUG_SHOW_GEOMETRY
+    out_color.rgb = vec3(
+    mod(i_world_pos.x, 0.2) > 0.1 ? 1. : 0.,
+    mod(i_world_pos.y, 0.2) > 0.1 ? 1. : 0.,
+    mix(i_world_pos.z, 1., pow(sin(i_world_pos.z * 100.), 2.))
+    );
+    out_color.a = 1.;
     out_tonemap = 0.;
 #endif
 }

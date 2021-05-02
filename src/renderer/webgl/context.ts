@@ -17,6 +17,8 @@ export type ContextParams = {
     useLinearNormals: boolean,
     /** If true, normal textures will be float textures. */
     useFloatNormals: boolean,
+    /** If true, point lights will be enabled. */
+    enablePointLights: boolean,
 };
 
 export type Context = {

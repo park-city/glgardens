@@ -178,6 +178,7 @@ export class GLShader {
         }
     }
 
+    // TODO: move this function somewhere else because it's not shader-specific
     bindUniformBlock(name: string, buffer: GLBuffer) {
         const type = this.vertex.uniforms[name] || this.fragment.uniforms[name];
         if (type !== GLUniformType.Block) throw new Error(`Uniform ${name} is not a block`);

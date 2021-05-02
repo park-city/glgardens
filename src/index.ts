@@ -207,6 +207,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         float: hasFloatFBO,
         useFloatNormals: false,
         useLinearNormals: false,
+        // super laggy on android. works fine everywhere else it seems
+        enablePointLights: !navigator.userAgent.includes('Android'),
     };
 
     let renderer: NetgardensWebGLRenderer;
@@ -261,7 +263,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     let renderEncodeSamples: number[] = [];
     let t = 0;
     const l = () => {
-        const dt = (Date.now() - lastTime) / 1000;
+        const dt = Math.min(1 / 30, (Date.now() - lastTime) / 1000);
         lastTime = Date.now();
         t += dt;
 
@@ -274,10 +276,11 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         }
 
         renderer.tileMap.ambientLightRadiance = vec3.fromValues(0, 0.05, 0.2);
-        const sunZ = Math.cos(t / 4);
+        const sunCycleT = -5.7;
+        const sunZ = Math.cos(sunCycleT / 4);
         renderer.tileMap.sunLightDir = vec3.normalize(vec3.create(), [
-            -Math.sin(t / 4),
-            Math.sin(t / 4),
+            -Math.sin(sunCycleT / 4),
+            Math.sin(sunCycleT / 4),
             sunZ,
         ]);
         const sunR = Math.max(0, 1 - Math.exp(-7 * (sunZ + 0.5)));
@@ -291,7 +294,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         const a = Math.tan((60 - rotH * 16) / 180 * Math.PI);
         renderer.camera.position = [pos[0] + Math.cos(rot + Math.PI / 4) * a * pos[2], pos[1] + Math.sin(rot + Math.PI / 4) * a * pos[2], pos[2]];
         renderer.camera.rotation = quat.fromEuler(quat.create(), -60, 0, rot / Math.PI * 180 - 90);
-        renderer.camera.orthoScale = zoom;
+        renderer.camera.orthoScale = zoom * 128;
         renderer.camera.fov = fov;
         renderer.camera.rotation = quat.fromEuler(quat.create(), -60 + rotH * 16, 0, (rot + Math.PI / 4) / Math.PI * 180 - 90);
         if (!persp) {
@@ -358,6 +361,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         <label for="renderer-float">Float Composite</label>
         <input type="checkbox" id="ds-linear-normals" />
         <label for="ds-linear-normals">Smooth Normals</label>
+        <input type="checkbox" id="ds-point-lights" />
+        <label for="ds-point-lights">Point Lights</label>
         `;
 
         const rendererType = debugBarSettings.querySelector('#renderer-type')! as HTMLSelectElement;
@@ -366,18 +371,19 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
             makeRenderer();
         });
 
-        const rendererCheckbox = (id: string, setting: keyof typeof rendererSettings, enabled: boolean, checked: boolean) => {
+        const rendererCheckbox = (id: string, setting: keyof typeof rendererSettings, enabled: boolean) => {
             const chk = debugBarSettings.querySelector(id)! as HTMLInputElement;
             chk.disabled = !enabled;
-            chk.checked = checked;
+            chk.checked = (rendererSettings as any)[setting];
             chk.addEventListener('change', () => {
                 (rendererSettings as any)[setting] = chk.checked;
                 makeRenderer();
             });
         }
 
-        rendererCheckbox('#renderer-float', 'float', hasFloatFBO, hasFloatFBO);
-        rendererCheckbox('#ds-linear-normals', 'useLinearNormals', true, false);
+        rendererCheckbox('#renderer-float', 'float', hasFloatFBO);
+        rendererCheckbox('#ds-linear-normals', 'useLinearNormals', true);
+        rendererCheckbox('#ds-point-lights', 'enablePointLights', true);
 
         const pi = ['>', '||'];
         const playPause = debugBarSettings.querySelector('#play-pause')!;

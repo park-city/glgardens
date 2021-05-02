@@ -9,6 +9,7 @@ export class BackingCanvas implements IBackingContext {
     node: HTMLDivElement;
     canvas!: HTMLCanvasElement;
     context: WebGL2RenderingContext | WebGLRenderingContext | CanvasRenderingContext2D | null = null;
+    maxPixelScale = 2;
 
     get width(): number {
         return this.canvas.width / this.pixelScale;
@@ -19,7 +20,7 @@ export class BackingCanvas implements IBackingContext {
     }
 
     get pixelScale(): number {
-        return Math.ceil(window.devicePixelRatio);
+        return Math.min(this.maxPixelScale, Math.ceil(window.devicePixelRatio));
     }
 
     constructor() {
