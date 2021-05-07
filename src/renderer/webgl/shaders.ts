@@ -64,6 +64,9 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
     const prelude = [
         (isGL2 && (params.fboFloat || params.fboHalfFloat)) && '#define FEATURE_FBO_FLOAT 1',
         (params.enablePointLights) && '#define FEATURE_POINT_LIGHTS 1',
+        // debug flags
+        (params.debug?.showGeometry) && '#define DEBUG_SHOW_GEOMETRY 1',
+        (params.debug?.showLightVolumes) && '#define DEBUG_SHOW_LIGHT_VOLUMES 1',
     ].filter(x => x).join('\n');
 
     if (isGL2) {
@@ -97,6 +100,7 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 UChunk: GLUniformType.Block,
                 UGlobalLighting: GLUniformType.Block,
                 UChunkLighting: GLUniformType.Block,
+                u_light_pass_index: GLUniformType.Int,
                 u_tileset_params: GLUniformType.Vec3,
                 u_tileset_color: GLUniformType.Sampler3,
                 u_tileset_normal: GLUniformType.Sampler3,
@@ -156,6 +160,7 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_tileset_normal: GLUniformType.Sampler2,
                 u_tileset_material: GLUniformType.Sampler2,
                 u_tileset_params: GLUniformType.Vec3,
+                u_light_pass_index: GLUniformType.Int,
                 u_gl_ambient_radiance: GLUniformType.Vec3,
                 u_gl_sun_dir: GLUniformType.Vec3,
                 u_gl_sun_radiance: GLUniformType.Vec3,

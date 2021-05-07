@@ -18,6 +18,7 @@ uniform vec3 u_tileset_params;
 uniform sampler2DArray u_tileset_color;
 uniform sampler2DArray u_tileset_normal;
 uniform sampler2DArray u_tileset_material;
+uniform int u_light_pass_index;
 
 in vec2 v_uv;
 in vec2 v_tile;
@@ -61,6 +62,7 @@ void main() {
 #endif
 
         light_fragment(
+            u_light_pass_index,
 #ifdef SET_FRAG_DEPTH
             u_camera.proj * u_camera.view,
 #endif
@@ -76,11 +78,13 @@ void main() {
             out_color,
             out_tonemap.r
         );
-    } else {
+    } else if (u_light_pass_index == 0) {
         out_color = i_color;
         out_tonemap.r = 0.;
 #ifdef SET_FRAG_DEPTH
         gl_FragDepth = gl_FragCoord.z;
 #endif
+    } else {
+        discard;
     }
 }

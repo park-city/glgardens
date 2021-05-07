@@ -117,6 +117,7 @@ export class Composite {
             gl.generateMipmap(gl.TEXTURE_2D);
 
             const runBloomScale = (swap0: GLFramebuffer, swap1: GLFramebuffer, scale: number) => {
+                scale = Math.pow(2, Math.floor(Math.log2(scale)));
                 swap0.size[0] = gl.drawingBufferWidth / scale;
                 swap0.size[1] = gl.drawingBufferHeight / scale;
                 swap1.size[0] = gl.drawingBufferWidth / scale;
@@ -137,13 +138,20 @@ export class Composite {
                 this.ctx.shaders.compositeBloomBlur!.setUniform('u_vert', 1);
                 swap1.color[0].bind(0);
                 this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+
+                swap1.invalidate();
             };
 
-            runBloomScale(this.bloomSwap.swap00, this.bloomSwap.swap01, 8);
-            runBloomScale(this.bloomSwap.swap10, this.bloomSwap.swap11, 16);
-            runBloomScale(this.bloomSwap.swap20, this.bloomSwap.swap21, 32);
+            runBloomScale(this.bloomSwap.swap00, this.bloomSwap.swap01, 4 * ctx.viewportScale);
+            runBloomScale(this.bloomSwap.swap10, this.bloomSwap.swap11, 8 * ctx.viewportScale);
+            runBloomScale(this.bloomSwap.swap20, this.bloomSwap.swap21, 16 * ctx.viewportScale);
 
             this.composite.bind();
+
+            if (this.ctx.params.debug?.showBloom) {
+                gl.clear(gl.COLOR_BUFFER_BIT);
+            }
+
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.ONE, gl.ONE);
             this.ctx.shaders.compositeBloomFinal!.bind();
@@ -154,6 +162,10 @@ export class Composite {
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
             this.bloomSwap.swap20.color[0].bind(0);
             this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+
+            this.bloomSwap.swap00.invalidate();
+            this.bloomSwap.swap10.invalidate();
+            this.bloomSwap.swap20.invalidate();
         }
 
         if (doCapture) {

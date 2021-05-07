@@ -77,6 +77,18 @@ export class GLFramebuffer {
         }
     }
 
+    invalidate() {
+        if (isWebGL2(this.gl)) {
+            const gl2 = this.gl as WebGL2RenderingContext;
+            const attachments = [];
+            for (const _ of this.colorFormats) {
+                attachments.push(gl2.COLOR_ATTACHMENT0 + attachments.length);
+            }
+            attachments.push(gl2.DEPTH_ATTACHMENT);
+            gl2.invalidateFramebuffer(gl2.FRAMEBUFFER, attachments);
+        }
+    }
+
     dispose() {
         for (const tex of this.color) tex.dispose();
         if (this.depth) this.gl.deleteRenderbuffer(this.depth);

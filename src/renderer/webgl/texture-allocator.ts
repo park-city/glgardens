@@ -45,7 +45,7 @@ export class TextureHandle {
 const TEX_ARRAY_SIZE = 8; // if this value is too high you get very strange bugs
 const TEX_MIP_LEVELS = 4;
 
-interface TextureArray {
+export interface TextureArray {
     readonly glFormat: GLenum;
     readonly size: vec2;
     readonly depth: number;

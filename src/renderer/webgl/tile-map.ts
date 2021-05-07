@@ -2,21 +2,20 @@ import { mat4, vec2, vec3, vec4 } from 'gl-matrix';
 import { Context, FrameContext } from './context';
 import { ITileMap, TileTypeId } from '../typedefs';
 import { distanceToBox, invSquareDistance, PlaneSubspace } from '../geom-utils';
-import { TileMapChunk, CHUNK_SIZE } from './tile-map-chunk';
+import { CHUNK_SIZE, MAX_TOTAL_POINT_LIGHTS, TileMapChunk } from './tile-map-chunk';
 import { TilesetMapping } from './tile-map-tileset';
-import { GLUniformBuffer } from './gl-buffer';
+import { GLBufferUsage, GLUniformBuffer } from './gl-buffer';
 import { UNIFORM_BLOCKS } from './shaders';
 
 const CHUNK_GC_INTERVAL_MS = 5 * 1000;
 const MAX_VIEW_RADIUS = 10;
 const CHUNK_CREATION_TIME_BUDGET = 1 / 60;
 const CHUNK_LIGHTING_SAMPLE_RADIUS = 2;
-const MAX_CHUNK_LIGHTS = 16; // TODO: raise limit
-const LIGHT_CULL_EPSILON = 0.3;
+const LIGHT_CULL_EPSILON = 0.4;
 
 type ChunkEntry = {
     chunk: TileMapChunk,
-    lastRender: number,
+    lastUpdate: number,
     lightingNeedsUpdate: boolean,
 };
 
@@ -78,6 +77,8 @@ export class TileMap {
             const gl = this.ctx.gl2;
             const camera = new GLUniformBuffer(gl, UNIFORM_BLOCKS.camera);
             const lighting = new GLUniformBuffer(gl, UNIFORM_BLOCKS.globalLighting);
+            camera.usage = GLBufferUsage.DynamicDraw;
+            lighting.usage = GLBufferUsage.DynamicDraw;
             this.uniformBuffers = { camera, lighting };
         }
 
@@ -133,7 +134,7 @@ export class TileMap {
     /** Deletes chunks that haven't been used in a while. */
     private purgeOldChunks(maxAgeMs: number) {
         for (const [key, chunk] of [...this.chunks.entries()]) {
-            if (chunk.lastRender < Date.now() - maxAgeMs) {
+            if (chunk.lastUpdate < Date.now() - maxAgeMs) {
                 chunk.chunk.dispose();
                 this.chunks.delete(key);
             }
@@ -152,7 +153,7 @@ export class TileMap {
         mat4.translate(chunk.transform, chunk.transform, [x * CHUNK_SIZE, y * CHUNK_SIZE, 0]);
         this.chunks.set(key, {
             chunk,
-            lastRender: 0,
+            lastUpdate: 0,
             lightingNeedsUpdate: false,
         } as ChunkEntry);
     }
@@ -205,7 +206,7 @@ export class TileMap {
         for (let dy = -CHUNK_LIGHTING_SAMPLE_RADIUS; dy <= CHUNK_LIGHTING_SAMPLE_RADIUS; dy++) {
             for (let dx = -CHUNK_LIGHTING_SAMPLE_RADIUS; dx <= CHUNK_LIGHTING_SAMPLE_RADIUS; dx++) {
                 if (dx === 0 && dy === 0) continue;
-                if (lights > MAX_CHUNK_LIGHTS) break outer;
+                if (lights > MAX_TOTAL_POINT_LIGHTS) break outer;
                 const chunkLights = this.getCulledPointLights(x + dx, y + dy, x, y);
                 for (const light of chunkLights) {
                     chunk.chunk.externalPointLights.add(light);
@@ -219,19 +220,7 @@ export class TileMap {
 
     // RENDERING
 
-    renderChunk(x: number, y: number, ctx: FrameContext) {
-        const key = TileMap.encodeChunkKey(x, y);
-        const chunk = this.chunks.get(key)! as ChunkEntry;
-        chunk.lastRender = Date.now();
-        return chunk.chunk.render(ctx);
-    }
-
-    lastGcTime = Date.now();
-    render(ctx: FrameContext) {
-        if (this.buffersNeedUpdate) {
-            this.createBuffers();
-        }
-
+    getView(ctx: FrameContext) {
         // compute view position
         const screenToWorld = (point: vec2, z = 0) => {
             const mapPlane = new PlaneSubspace(
@@ -247,7 +236,7 @@ export class TileMap {
         };
 
         const centerPoint = screenToWorld([0, 0], 0);
-        if (!centerPoint) return;
+        if (!centerPoint) return { center: vec2.fromValues(0, 0), radius: 0, viewChunks: [], renderChunks: [] };
         const projectAndGetViewRadius = (p: vec2, z: number) => {
             const worldPoint = screenToWorld([-1, -1], z);
             if (!worldPoint) return 0;
@@ -259,61 +248,110 @@ export class TileMap {
             projectAndGetViewRadius([1, 1], 0),
         );
 
-        const viewChunk = vec2.fromValues(centerPoint[0], centerPoint[1]);
-        vec2.scale(viewChunk, viewChunk, 1 / CHUNK_SIZE);
-        vec2.floor(viewChunk, viewChunk);
+        const center = vec2.fromValues(centerPoint[0], centerPoint[1]);
+        vec2.scale(center, center, 1 / CHUNK_SIZE);
+        vec2.floor(center, center);
         const radius = Math.min(MAX_VIEW_RADIUS, Math.ceil(viewRadius / CHUNK_SIZE));
+
+        const viewChunks: vec2[] = [];
+        const renderChunks: vec2[] = [];
+        const p = vec4.create();
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const x = center[0] + dx;
+                const y = center[1] + dy;
+                if (Math.hypot(dx, dy) > radius + 1) continue;
+
+                let leastWindowX = Infinity;
+                let leastWindowY = Infinity;
+                let mostWindowX = -Infinity;
+                let mostWindowY = -Infinity;
+
+                const project = (x: number, y: number, z: number) => {
+                    vec4.set(p, x * CHUNK_SIZE, y * CHUNK_SIZE, z, 1);
+                    vec4.transformMat4(p, p, ctx.view);
+                    vec4.transformMat4(p, p, ctx.proj);
+                    leastWindowX = Math.min(leastWindowX, p[0] / p[3]);
+                    leastWindowY = Math.min(leastWindowY, p[1] / p[3]);
+                    mostWindowX = Math.max(mostWindowX, p[0] / p[3]);
+                    mostWindowY = Math.max(mostWindowY, p[1] / p[3]);
+                };
+
+                project(x, y, 0);
+                project(x + 1, y, 0);
+                project(x, y + 1, 0);
+                project(x + 1, y + 1, 0);
+                project(x + 1, y + 1, 1);
+
+                if (leastWindowX < 1 && leastWindowY < 1 && mostWindowX > -1 && mostWindowY > -1) {
+                    renderChunks.push(vec2.fromValues(x, y));
+                }
+                viewChunks.push(vec2.fromValues(x, y));
+            }
+        }
+
+        return { center, radius, viewChunks, renderChunks };
+    }
+
+    private currentView: { viewChunks: vec2[], renderChunks: vec2[] } | null = null;
+    update(ctx: FrameContext) {
+        if (this.buffersNeedUpdate) {
+            this.createBuffers();
+        }
+
+        this.currentView = this.getView(ctx);
+        const chunks = this.currentView.viewChunks;
+
+        if (this.uniformBuffers) {
+            this.updateBuffers(ctx);
+        }
 
         // update chunks
         let renderStart = Date.now();
         let didCreateAChunk = false;
 
-        for (let dy = -radius; dy <= radius; dy++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-                if (Math.hypot(dx, dy) > radius + 1) continue;
-                const x = viewChunk[0] + dx;
-                const y = viewChunk[1] + dy;
-                const key = TileMap.encodeChunkKey(x, y);
+        for (const [x, y] of chunks) {
+            const key = TileMap.encodeChunkKey(x, y);
 
-                const timeSinceRenderStart = (Date.now() - renderStart) / 1000;
-                const canCreate = !didCreateAChunk || timeSinceRenderStart < CHUNK_CREATION_TIME_BUDGET;
+            const timeSinceRenderStart = (Date.now() - renderStart) / 1000;
+            const canCreate = !didCreateAChunk || timeSinceRenderStart < CHUNK_CREATION_TIME_BUDGET;
 
-                const hasChunk = this.chunks.has(key);
-                if (!hasChunk && canCreate) {
-                    this.createChunk(x, y);
-                    didCreateAChunk = true;
-                } else if (!hasChunk) continue;
+            const hasChunk = this.chunks.has(key);
+            if (!hasChunk && canCreate) {
+                this.createChunk(x, y);
+                didCreateAChunk = true;
+            } else if (!hasChunk) continue;
 
-                const chunk = this.chunks.get(key)! as ChunkEntry;
-                const updates = chunk.chunk.update(ctx);
+            const chunk = this.chunks.get(key)! as ChunkEntry;
+            chunk.lastUpdate = Date.now();
+            const updates = chunk.chunk.update(ctx);
 
-                if (updates.pointLightsDidChange) {
-                    this.chunkDidUpdateLights(x, y);
-                }
+            if (updates.pointLightsDidChange) {
+                this.chunkDidUpdateLights(x, y);
             }
         }
 
         // update chunk lighting
-        for (let dy = -radius; dy <= radius; dy++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-                if (Math.hypot(dx, dy) > radius + 1) continue;
-                const x = viewChunk[0] + dx;
-                const y = viewChunk[1] + dy;
-                const key = TileMap.encodeChunkKey(x, y);
-                const chunk = this.chunks.get(key) as ChunkEntry | null;
-                if (!chunk) continue;
+        for (const [x, y] of chunks) {
+            const key = TileMap.encodeChunkKey(x, y);
+            const chunk = this.chunks.get(key) as ChunkEntry | null;
+            if (!chunk) continue;
 
-                if (chunk.lightingNeedsUpdate) {
-                    this.updateChunkLighting(x, y);
-                }
+            if (chunk.lightingNeedsUpdate) {
+                this.updateChunkLighting(x, y);
             }
         }
+    }
+
+    lastGcTime = Date.now();
+    render(ctx: FrameContext) {
+        if (!this.currentView) return;
+        const chunks = this.currentView.renderChunks;
 
         // render chunks
         const tileChunkShader = this.ctx.shaders.tileChunk;
         tileChunkShader.bind();
         if (this.uniformBuffers) {
-            this.updateBuffers(ctx);
             tileChunkShader.bindUniformBlock('UCamera', this.uniformBuffers.camera);
             tileChunkShader.bindUniformBlock('UGlobalLighting', this.uniformBuffers.lighting);
         } else {
@@ -326,32 +364,19 @@ export class TileMap {
         }
 
         let screenIsEmpty = true;
+        const batchState = {};
 
-        // chunks are always drawn in order!
-        this.ctx.gl.disable(this.ctx.gl.DEPTH_TEST);
-
-        for (let dy = -radius; dy <= radius; dy++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-                if (Math.hypot(dx, dy) > radius + 1) continue;
-                const x = viewChunk[0] + dx;
-                const y = viewChunk[1] + dy;
-                const key = TileMap.encodeChunkKey(x, y);
-                const chunk = this.chunks.get(key) as ChunkEntry | null;
-                if (!chunk) continue;
-
-                const didRender = this.renderChunk(x, y, ctx);
-                if (didRender) screenIsEmpty = false;
-            }
+        for (const [x, y] of chunks) {
+            const key = TileMap.encodeChunkKey(x, y);
+            const chunk = this.chunks.get(key) as ChunkEntry | null;
+            if (!chunk) continue;
+            const didRender = chunk.chunk.render(ctx, batchState);
+            if (didRender) screenIsEmpty = false;
         }
 
-        this.ctx.gl.enable(this.ctx.gl.DEPTH_TEST);
-
         if (screenIsEmpty) {
-            for (let dy = -radius; dy <= radius; dy++) {
-                for (let dx = -radius; dx <= radius; dx++) {
-                    if (Math.hypot(dx, dy) > radius + 1) continue;
-                    this.markChunkAsFirstScreen(viewChunk[0] + dx, viewChunk[1] + dy);
-                }
+            for (const [x, y] of chunks) {
+                this.markChunkAsFirstScreen(x, y);
             }
         }
 

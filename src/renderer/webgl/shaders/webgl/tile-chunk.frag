@@ -13,6 +13,7 @@ uniform vec3 u_gl_sun_radiance;
 uniform int u_cl_point_light_count;
 uniform vec3 u_cl_point_light_pos[MAX_POINT_LIGHTS];
 uniform vec3 u_cl_point_light_radiance[MAX_POINT_LIGHTS];
+uniform int u_light_pass_index;
 
 varying vec2 v_uv;
 varying vec2 v_tile;
@@ -50,6 +51,7 @@ void main() {
         float out_tonemap;
 
         light_fragment(
+            u_light_pass_index,
             u_camera_pos,
             v_obj_pos,
             v_cube_pos,
@@ -62,7 +64,9 @@ void main() {
             gl_FragColor,
             out_tonemap
         );
-    } else {
+    } else if (u_light_pass_index == 0) {
         gl_FragColor = i_color;
+    } else {
+        discard;
     }
 }

@@ -20,6 +20,7 @@ export type WebGLGraphicsSettings = {
     useFloatNormals?: boolean,
     useLinearNormals?: boolean,
     enablePointLights?: boolean,
+    debug?: { [k: string]: unknown },
 };
 const DEFAULT_SETTINGS: WebGLGraphicsSettings = {
     useWebGL2: true,
@@ -91,6 +92,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
             useFloatNormals: !!settings.useFloatNormals,
             useLinearNormals: !!settings.useLinearNormals,
             enablePointLights: !!settings.enablePointLights,
+            debug: settings.debug,
         };
 
         const info = {
@@ -155,11 +157,11 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
 
         const ctx = this.beginFrame();
 
+        this.tileMap.update(ctx);
+
         this.composite.begin(ctx);
         this.tileMap.render(ctx);
         this.composite.present(ctx);
-
-        this.ctx.gl.finish();
     }
 
     capture() {

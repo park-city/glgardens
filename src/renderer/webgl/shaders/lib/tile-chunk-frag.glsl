@@ -5,7 +5,7 @@
 #pragma glslify: tonemap = require('../lib/tonemap.glsl')
 #endif
 
-#define LIGHT_CULL_EPSILON 0.3
+#define LIGHT_CULL_EPSILON 0.4
 
 #include "tile-chunk-lighting.glsl"
 
@@ -47,6 +47,7 @@ void adjust_cube_depth(inout vec3 cube_pos, float i_z) {
 }
 
 void light_fragment(
+    in int i_light_pass_index,
 #ifdef SET_FRAG_DEPTH
     in mat4 i_proj_view,
 #endif
@@ -98,20 +99,28 @@ void light_fragment(
 
     out_color = vec4(0, 0, 0, i_color.a);
 
-    // ambient light
-    out_color.rgb += shade_tile_ambient(i_color.rgb, global_lighting.ambient_radiance);
+    if (i_light_pass_index == 0) {
+        // ambient light
+        out_color.rgb += shade_tile_ambient(i_color.rgb, global_lighting.ambient_radiance);
 
-    // sun light
-    out_color.rgb += shade_tile(
-        i_color.rgb,
-        i_normal,
-        i_roughness,
-        global_lighting.sun_dir,
-        view_dir,
-        global_lighting.sun_radiance
-    );
+        // sun light
+        out_color.rgb += shade_tile(
+            i_color.rgb,
+            i_normal,
+            i_roughness,
+            global_lighting.sun_dir,
+            view_dir,
+            global_lighting.sun_radiance
+        );
+
+        // tile emission
+        out_color.rgb += i_emission;
+    }
 
 #ifdef FEATURE_POINT_LIGHTS
+#ifdef DEBUG_SHOW_LIGHT_VOLUMES
+    out_color.rgb = vec3(0.);
+#endif
     // point lights
     for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
         if (i >= chunk_lighting.point_light_count) break;
@@ -124,9 +133,14 @@ void light_fragment(
         light_radiance *= max(0., 1. - exp(-5. * (lr_max - LIGHT_CULL_EPSILON)));
 
         out_color.rgb += shade_tile(i_color.rgb, i_normal, i_roughness, light_dir, view_dir, light_radiance);
+
+        #ifdef DEBUG_SHOW_LIGHT_VOLUMES
+        if (lr_max > LIGHT_CULL_EPSILON || mod((gl_FragCoord.x - light_dir.x * 16.) + (gl_FragCoord.y - light_dir.y * 16.), 8.) < 1.) {
+            out_color.rgb += normalize(light.radiance);
+        }
+        #endif
     }
 #endif
-    out_color.rgb += i_emission;
 
 #ifdef HDR_COMPOSITE
     out_tonemap = 1.;
@@ -137,9 +151,9 @@ void light_fragment(
 
 #ifdef DEBUG_SHOW_GEOMETRY
     out_color.rgb = vec3(
-    mod(i_world_pos.x, 0.2) > 0.1 ? 1. : 0.,
-    mod(i_world_pos.y, 0.2) > 0.1 ? 1. : 0.,
-    mix(i_world_pos.z, 1., pow(sin(i_world_pos.z * 100.), 2.))
+        mod(i_world_pos.x, 0.2) > 0.1 ? 1. : 0.,
+        mod(i_world_pos.y, 0.2) > 0.1 ? 1. : 0.,
+        mix(i_world_pos.z, 1., pow(sin(i_world_pos.z * 100.), 2.))
     );
     out_color.a = 1.;
     out_tonemap = 0.;

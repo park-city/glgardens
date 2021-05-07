@@ -85,20 +85,20 @@ const mapData = fetch('testmap2.csv').then(res => {
 
         let tileId = rawTiles[py] && rawTiles[py][px];
         if (!Number.isFinite(tileId)) return null;
-        if (px >= w / 2 && tileId <= 7) tileId += 20;
+        if (px >= w / 2 && py < h / 2 && tileId <= 7) tileId += 20;
         return tileId;
     };
 });
 
 Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     const centralParkTiles = {
-        0: { frames: [[0, 0]] },
-        1: { frames: [[0, 1]] },
-        2: { frames: [[0, 2]] },
-        3: { frames: [[0, 3]] },
+        0: { frames: [[0, 0]], geometry: GeometryType.CubeBack },
+        1: { frames: [[0, 1]], geometry: GeometryType.CubeBack },
+        2: { frames: [[0, 2]], geometry: GeometryType.CubeBack },
+        3: { frames: [[0, 3]], geometry: GeometryType.CubeBack },
         4: { frames: [[0, 4]], geometry: GeometryType.CubeFront },
         5: { frames: [[0, 5]], geometry: GeometryType.Flat },
-        6: { frames: [[0, 6]] },
+        6: { frames: [[0, 6]], geometry: GeometryType.CubeBack },
         7: { frames: [[0, 7]], pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] } },
         8: {
             frames: [
@@ -135,8 +135,12 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     };
 
     const cybertestTiles = {
-        100: { frames: [[0, 0]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [0, 40 * 2, 12 * 2] } },
+        100: { frames: [[0, 0]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [0, 80, 24] } },
         101: { frames: [[1, 0]] },
+        104: { frames: [[0, 1]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [0, 7, 80] } },
+        105: { frames: [[1, 1]] },
+        108: { frames: [[0, 2]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [0, 80, 0] } },
+        112: { frames: [[0, 3]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [80, 0, 4] } },
     };
     const cybertest = {
         pixelSize: [images.cybertestColor.width, images.cybertestColor.height] as [number, number],
@@ -209,6 +213,15 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         useLinearNormals: false,
         // super laggy on android. works fine everywhere else it seems
         enablePointLights: !navigator.userAgent.includes('Android'),
+
+        debugType: 'normal',
+    };
+
+    const DEBUG_TYPES = {
+        normal: {},
+        geometry: { showGeometry: true },
+        lightVolumes: { showLightVolumes: true },
+        bloom: { showBloom: true },
     };
 
     let renderer: NetgardensWebGLRenderer;
@@ -218,6 +231,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
             ...rendererSettings,
             useWebGL2: rendererSettings.type === 'gl2',
             useFboFloat: rendererSettings.float ? 'full' : 'none',
+            debug: (DEBUG_TYPES as any)[rendererSettings.debugType],
         });
         renderer.render();
 
@@ -276,7 +290,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         }
 
         renderer.tileMap.ambientLightRadiance = vec3.fromValues(0, 0.05, 0.2);
-        const sunCycleT = -5.7;
+        // const sunCycleT = -5.7;
+        const sunCycleT = -8.7;
         const sunZ = Math.cos(sunCycleT / 4);
         renderer.tileMap.sunLightDir = vec3.normalize(vec3.create(), [
             -Math.sin(sunCycleT / 4),
@@ -357,6 +372,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         <button id="play-pause"></button>
         <button id="step-render">1</button>
         <button id="capture-render">EXR</button>
+        <select id="ds-debug"></select>
         <input type="checkbox" id="renderer-float" />
         <label for="renderer-float">Float Composite</label>
         <input type="checkbox" id="ds-linear-normals" />
@@ -415,6 +431,18 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
             } catch (err) {
                 alert(err);
             }
+        });
+
+        const dsDebug = debugBarSettings.querySelector('#ds-debug')! as HTMLSelectElement;
+        for (const t of Object.keys(DEBUG_TYPES)) {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            dsDebug.appendChild(opt);
+        }
+        dsDebug.addEventListener('change', () => {
+            rendererSettings.debugType = dsDebug.value;
+            makeRenderer();
         });
     }
 

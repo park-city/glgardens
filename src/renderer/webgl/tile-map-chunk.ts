@@ -7,10 +7,22 @@ import { GLBuffer, GLBufferType, GLUniformBlockData, GLUniformBuffer } from './g
 import { GLVertexArray } from './gl-vao';
 import { PlaneSubspace } from '../geom-utils';
 import { MAX_POINT_LIGHTS, UNIFORM_BLOCKS } from './shaders';
+import { setNormalAlphaBlending } from './gl-utils';
+import { TextureArray } from './texture-allocator';
 
 export const CHUNK_SIZE = 8;
 const PROJECTION_ANGLE = 60 / 180 * Math.PI;
 const TEXTURE_ASPECT = 1;
+const LOAD_ANIM_UPDATE_TIME = 6;
+export const MAX_TOTAL_POINT_LIGHTS = 16;
+
+export type TileMapChunkBatchState = {
+    tileset?: Tileset,
+    texColor?: TextureArray,
+    texNormal?: TextureArray,
+    texMaterial?: TextureArray,
+};
+export const EMPTY_BATCH_STATE: TileMapChunkBatchState = {};
 
 type ChunkBuffers = {
     vao: GLVertexArray,
@@ -23,7 +35,7 @@ type ChunkBuffers = {
 
 type ChunkUniformBuffers = {
     chunk: GLUniformBuffer,
-    lighting: GLUniformBuffer,
+    lighting: GLUniformBuffer[],
 };
 
 export type TileMapChunkData = (cx: number, cy: number) => TileTypeId | null;
@@ -50,6 +62,7 @@ export class TileMapChunk {
     pointLights: PointLight[] = [];
 
     buffersNeedUpdate = false;
+    chunkBufferNeedsUpdate = false;
     isMissingTileTypes = false;
     isFirstScreen = false;
 
@@ -81,7 +94,6 @@ export class TileMapChunk {
         let indexPos = 0;
         let currentRenderBatch: TileRenderChunk | null = null;
 
-        // TODO: sort by tile set if OIT is enabled
         for (let y = 0; y < CHUNK_SIZE; y++) {
             for (let x = 0; x < CHUNK_SIZE; x++) {
                 const z = 0;
@@ -180,11 +192,11 @@ export class TileMapChunk {
         if (this.ctx.gl2) {
             const gl = this.ctx.gl2;
             const chunk = new GLUniformBuffer(gl, UNIFORM_BLOCKS.chunk);
-            const lighting = new GLUniformBuffer(gl, UNIFORM_BLOCKS.chunkLighting);
-            this.uniformBuffers = { chunk, lighting };
+            this.uniformBuffers = { chunk, lighting: [] };
         }
 
         this.buffersNeedUpdate = false;
+        this.chunkBufferNeedsUpdate = true;
         this.updateTiles();
     }
 
@@ -198,46 +210,75 @@ export class TileMapChunk {
             transform: this.transform,
             load_anim: this.loadAnim,
         });
+        this.chunkBufferNeedsUpdate = false;
     }
 
     externalPointLights: Set<PointLight> = new Set();
-    pointLightUniformValues: { count: number, pos: Float32Array, rad: Float32Array } | null = null;
+    pointLightUniformValues: { count: number, pos: Float32Array, rad: Float32Array }[] | null = null;
 
     updateLighting() {
-        // TODO: support for more than 16 lights
         const allLights = [];
         for (const light of this.pointLights) {
-            if (allLights.length >= MAX_POINT_LIGHTS) break;
+            if (allLights.length >= MAX_TOTAL_POINT_LIGHTS) break;
             allLights.push(light as unknown as GLUniformBlockData);
         }
         for (const light of this.externalPointLights) {
-            if (allLights.length >= MAX_POINT_LIGHTS) break;
+            if (allLights.length >= MAX_TOTAL_POINT_LIGHTS) break;
             allLights.push(light as unknown as GLUniformBlockData);
         }
 
-        if (this.uniformBuffers) {
-            const buf = this.uniformBuffers.lighting;
-            buf.bind();
+        // max(1, ..): we need at least 1 lighting buffer (with zero lights) to render the chunk
+        const bufferCount = Math.max(1, Math.ceil(allLights.length / MAX_POINT_LIGHTS));
 
-            buf.setUniformData({
-                point_light_count: Math.min(allLights.length, MAX_POINT_LIGHTS),
-                point_lights: allLights,
-            });
-        } else {
-            const previous = this.pointLightUniformValues;
-            const pos = previous?.pos || new Float32Array(MAX_POINT_LIGHTS * 3);
-            const rad = previous?.rad || new Float32Array(MAX_POINT_LIGHTS * 3);
-            for (let i = 0; i < allLights.length; i++) {
-                const l = allLights[i] as unknown as PointLight;
-                pos[i * 3] = l.pos[0];
-                pos[i * 3 + 1] = l.pos[1];
-                pos[i * 3 + 2] = l.pos[2];
-                rad[i * 3] = l.radiance[0];
-                rad[i * 3 + 1] = l.radiance[1];
-                rad[i * 3 + 2] = l.radiance[2];
+        if (this.uniformBuffers) {
+            while (this.uniformBuffers.lighting.length < bufferCount) {
+                const buf = new GLUniformBuffer(this.ctx.gl2!, UNIFORM_BLOCKS.chunkLighting);
+                this.uniformBuffers.lighting.push(buf);
+            }
+            while (this.uniformBuffers.lighting.length > bufferCount) {
+                const buf = this.uniformBuffers.lighting.pop();
+                if (buf) buf.dispose();
             }
 
-            this.pointLightUniformValues = { count: allLights.length, pos, rad };
+            for (let i = 0; i < bufferCount; i++) {
+                const startIndex = i * MAX_POINT_LIGHTS;
+                const endIndex = Math.min(allLights.length, (i + 1) * MAX_POINT_LIGHTS);
+
+                const buf = this.uniformBuffers.lighting[i];
+                buf.bind();
+                buf.setUniformData({
+                    point_light_count: endIndex - startIndex,
+                    point_lights: allLights.slice(startIndex, endIndex),
+                });
+            }
+        } else {
+            if (!this.pointLightUniformValues) this.pointLightUniformValues = [];
+            while (this.pointLightUniformValues.length < bufferCount) {
+                const pos = new Float32Array(MAX_POINT_LIGHTS * 3);
+                const rad = new Float32Array(MAX_POINT_LIGHTS * 3);
+                this.pointLightUniformValues.push({ count: 0, pos, rad });
+            }
+            while (this.pointLightUniformValues.length > bufferCount) {
+                this.pointLightUniformValues.pop();
+            }
+
+            for (let i = 0; i < bufferCount; i++) {
+                const startIndex = i * MAX_POINT_LIGHTS;
+                const endIndex = Math.min(allLights.length, (i + 1) * MAX_POINT_LIGHTS);
+
+                const entry = this.pointLightUniformValues[i];
+                entry.count = endIndex - startIndex;
+
+                for (let j = 0; j < entry.count; j++) {
+                    const l = allLights[startIndex + j] as unknown as PointLight;
+                    entry.pos[j * 3] = l.pos[0];
+                    entry.pos[j * 3 + 1] = l.pos[1];
+                    entry.pos[j * 3 + 2] = l.pos[2];
+                    entry.rad[j * 3] = l.radiance[0];
+                    entry.rad[j * 3 + 1] = l.radiance[1];
+                    entry.rad[j * 3 + 2] = l.radiance[2];
+                }
+            }
         }
     }
 
@@ -345,6 +386,13 @@ export class TileMapChunk {
         // loading animation
         if (!this.animateInOrigin) this.getAnimateInOrigin(ctx);
         this.animateInTime += deltaTime;
+        if (this.animateInTime < LOAD_ANIM_UPDATE_TIME) {
+            this.chunkBufferNeedsUpdate = true;
+        }
+
+        if (this.chunkBufferNeedsUpdate) {
+            this.updateUChunkBuffer();
+        }
 
         // frame animation
         this.animationFrameTime = Math.max(0, Math.min(1, this.animationFrameTime + deltaTime));
@@ -355,7 +403,7 @@ export class TileMapChunk {
         }
         if (hasAnimation) {
             this.updateTiles();
-            return { pointLightsDidChange: true };
+            return { pointLightsDidChange };
         }
 
         return { pointLightsDidChange };
@@ -366,53 +414,95 @@ export class TileMapChunk {
      * Note that before calling this function, the tileChunk shader must be bound and set up.
      * Returns true if something was rendered.
      */
-    render(ctx: FrameContext) {
+    render(ctx: FrameContext, batchState?: TileMapChunkBatchState) {
         if (!this.buffers || !this.tileRenderBatches.length) return false;
 
-        this.renderContents();
+        this.renderContents(batchState);
         return true;
     }
 
-    private renderContents() {
+    private renderContents(batchState = EMPTY_BATCH_STATE) {
         const { gl } = this.ctx;
 
-        // shader setup
         const tileChunkShader = this.ctx.shaders.tileChunk;
-        // TODO: don't update these every frame
-        this.updateUChunkBuffer();
-        if (this.uniformBuffers) {
-            tileChunkShader.bindUniformBlock('UChunk', this.uniformBuffers.chunk);
-            tileChunkShader.bindUniformBlock('UChunkLighting', this.uniformBuffers.lighting);
-        } else {
-            tileChunkShader.setUniform('u_chunk_transform', this.transform);
-            // TODO: check if setting this uniform is even necessary (esp. if animInTime is big)
-            tileChunkShader.setUniform('u_chunk_load_anim', this.loadAnim);
-
-            // unfortunately, these have to be reset every time..
-            const pointLightU = this.pointLightUniformValues!;
-            tileChunkShader.setUniform('u_cl_point_light_count', pointLightU.count);
-            tileChunkShader.setUniform('u_cl_point_light_pos', pointLightU.pos);
-            tileChunkShader.setUniform('u_cl_point_light_radiance', pointLightU.rad);
-        }
-
         const buffers = this.buffers!;
         buffers.vao.bind();
+
         for (const renderBatch of this.tileRenderBatches) {
-            // TODO: don't rebind textures
-            renderBatch.tileset.ensureAvailable();
-            renderBatch.tileset.texColor!.bind(0);
-            renderBatch.tileset.texNormal!.bind(1);
-            renderBatch.tileset.texMaterial!.bind(2);
-            const tilesetSize = renderBatch.tileset.size;
+            if (this.uniformBuffers) {
+                tileChunkShader.bindUniformBlock('UChunk', this.uniformBuffers.chunk);
+
+                for (let i = 0; i < this.uniformBuffers.lighting.length; i++) {
+                    const isFirst = i === 0;
+                    const isLast = i === this.uniformBuffers.lighting.length - 1;
+                    const buf = this.uniformBuffers.lighting[i];
+
+                    tileChunkShader.setUniform('u_light_pass_index', i);
+                    tileChunkShader.bindUniformBlock('UChunkLighting', buf);
+                    this.bindTileset(renderBatch.tileset, batchState);
+                    buffers.vao.draw(this.ctx.gl.TRIANGLES, renderBatch.indexPos, renderBatch.indexCount);
+
+                    if (isFirst && !isLast) {
+                        // start additive composite
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                    } else if (!isFirst && isLast) {
+                        // complete additive composite
+                        setNormalAlphaBlending(gl);
+                    }
+                }
+            } else {
+                tileChunkShader.setUniform('u_chunk_transform', this.transform);
+                tileChunkShader.setUniform('u_chunk_load_anim', this.loadAnim);
+
+                for (let i = 0; i < this.pointLightUniformValues!.length; i++) {
+                    const pointLightU = this.pointLightUniformValues![i];
+
+                    tileChunkShader.setUniform('u_light_pass_index', i);
+                    tileChunkShader.setUniform('u_cl_point_light_count', pointLightU.count);
+                    tileChunkShader.setUniform('u_cl_point_light_pos', pointLightU.pos);
+                    tileChunkShader.setUniform('u_cl_point_light_radiance', pointLightU.rad);
+                    this.bindTileset(renderBatch.tileset, batchState);
+                    buffers.vao.draw(this.ctx.gl.TRIANGLES, renderBatch.indexPos, renderBatch.indexCount);
+
+                    const isFirst = i === 0;
+                    const isLast = i === this.pointLightUniformValues!.length - 1;
+                    if (isFirst && !isLast) {
+                        // start additive composite
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                    } else if (!isFirst && isLast) {
+                        // complete additive composite
+                        setNormalAlphaBlending(gl);
+                    }
+                }
+            }
+        }
+        buffers.vao.unbind();
+    }
+
+    private bindTileset(tileset: Tileset, batchState: TileMapChunkBatchState) {
+        const tileChunkShader = this.ctx.shaders.tileChunk;
+        if (tileset !== batchState.tileset) {
+            tileset.ensureAvailable();
+            if (tileset.texColor?.array !== batchState.texColor) {
+                tileset.texColor!.bind(0);
+                batchState.texColor = tileset.texColor?.array;
+            }
+            if (tileset.texNormal?.array !== batchState.texNormal) {
+                tileset.texNormal!.bind(1);
+                batchState.texNormal = tileset.texNormal?.array;
+            }
+            if (tileset.texMaterial?.array !== batchState.texMaterial) {
+                tileset.texMaterial!.bind(2);
+                batchState.texMaterial = tileset.texMaterial?.array;
+            }
+            const tilesetSize = tileset.size;
             tileChunkShader.setUniform('u_tileset_params', [
                 tilesetSize[0],
                 tilesetSize[1],
-                renderBatch.tileset.renderIndex,
+                tileset.renderIndex,
             ]);
-
-            buffers.vao.draw(gl.TRIANGLES, renderBatch.indexPos, renderBatch.indexCount);
+            batchState.tileset = tileset;
         }
-        buffers.vao.unbind();
     }
 
     deleteBuffers() {
@@ -424,7 +514,7 @@ export class TileMapChunk {
         this.buffers.aTile.dispose();
         this.buffers.aObjPos.dispose();
         this.uniformBuffers?.chunk.dispose();
-        this.uniformBuffers?.lighting.dispose();
+        for (const buf of (this.uniformBuffers?.lighting || [])) buf.dispose();
         this.uniformBuffers = undefined;
         this.buffers = undefined;
     }

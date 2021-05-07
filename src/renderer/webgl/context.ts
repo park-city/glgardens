@@ -19,6 +19,9 @@ export type ContextParams = {
     useFloatNormals: boolean,
     /** If true, point lights will be enabled. */
     enablePointLights: boolean,
+
+    /** Debug flags. */
+    debug?: { [k: string]: unknown },
 };
 
 export type Context = {

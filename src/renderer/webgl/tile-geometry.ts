@@ -23,7 +23,7 @@ function pushVertex(out: GeometryOutput, pos: vec3, uv: vec2): number {
 
 export function createTileGeometry(
     out: GeometryOutput,
-    type: GeometryType,
+    type = GeometryType.Flat,
     x: number, y: number, z: number,
     projectionAngle: number,
     textureAspect: number,
