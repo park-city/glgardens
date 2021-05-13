@@ -4,3 +4,4 @@ package-lock.json
 !target/*.html
 !target/*.png
 !target/*.csv
+.next/

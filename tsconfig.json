@@ -1,12 +1,29 @@
 {
-    "compilerOptions": {
-        "lib": ["ES2019", "DOM"],
-        "target": "ES2019",
-        "strict": true,
-        "module": "ES2020",
-        "jsx": "react",
-        "moduleResolution": "node",
-        "esModuleInterop": true,
-        "preserveSymlinks": true,
-    }
+  "compilerOptions": {
+    "lib": [
+      "ES2019",
+      "DOM"
+    ],
+    "target": "ES2019",
+    "strict": true,
+    "module": "ES2020",
+    "jsx": "preserve",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "preserveSymlinks": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
