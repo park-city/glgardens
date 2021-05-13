@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "",
   "main": "index.js",
+  "repository": {
+    "type" : "git",
+    "url" : "git@github.com:park-city/glgardens.git"
+  },
   "scripts": {
     "build": "env NODE_ENV=production rollup -c",
     "watch": "rollup -c --watch"
