@@ -49,7 +49,8 @@ function glslInclude() {
 
     async function transform(code, id) {
         const newCode = [];
-        for (const line of code.split('\n')) {
+        for (let line of code.split('\n')) {
+            line = line.trim();
             if (line.startsWith('#include')) {
                 const m = line.match(/^#include "((?:[^\\"]|\\.)+)"$/);
                 if (!m) throw new Error(`GLSL syntax error: ${line} does not match include format`);
