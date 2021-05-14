@@ -1,4 +1,6 @@
-export compositeFinalVert from './composite-final.vert';
-export compositeFinalFrag from './composite-final.frag';
-export tileChunkVert from './tile-chunk.vert';
-export tileChunkFrag from './tile-chunk.frag';
+import glsl from 'glslify';
+
+export const compositeFinalVert = glsl.file('./composite-final.vert');
+export const compositeFinalFrag = glsl.file('./composite-final.frag');
+export const tileChunkVert = glsl.file('./tile-chunk.vert');
+export const tileChunkFrag = glsl.file('./tile-chunk.frag');

@@ -1,7 +1,9 @@
-export compositeVert from './composite.vert';
-export compositeBloomThresFrag from './composite-bloom-thres.frag';
-export compositeBloomBlurFrag from './composite-bloom-blur.frag';
-export compositeBloomFinalFrag from './composite-bloom-final.frag';
-export compositeFinalFrag from './composite-final.frag';
-export tileChunkVert from './tile-chunk.vert';
-export tileChunkFrag from './tile-chunk.frag';
+import glsl from 'glslify';
+
+export const compositeVert = glsl.file('./composite.vert');
+export const compositeBloomThresFrag = glsl.file('./composite-bloom-thres.frag');
+export const compositeBloomBlurFrag = glsl.file('./composite-bloom-blur.frag');
+export const compositeBloomFinalFrag = glsl.file('./composite-bloom-final.frag');
+export const compositeFinalFrag = glsl.file('./composite-final.frag');
+export const tileChunkVert = glsl.file('./tile-chunk.vert');
+export const tileChunkFrag = glsl.file('./tile-chunk.frag');

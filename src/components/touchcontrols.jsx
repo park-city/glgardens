@@ -1,8 +1,9 @@
 import React from "react"
+import styles from "./touchcontrols.module.css"
 
 class TouchControls extends React.Component {
-	render() { return 
-	<div>
+	render() { 
+	return <div className={styles.touchControls}>
 		<div>
 			<button id="zoom-out">zoom out</button>
 			<button id="zoom-in">zoom in</button>
@@ -22,10 +23,4 @@ class TouchControls extends React.Component {
 	}
 }
 
-class Index extends React.Component {
-	render() {
-		return <div>Welcome to NextJS!</div>
-	}
-}
-
-export default Index
+export default TouchControls;

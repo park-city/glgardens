@@ -101,7 +101,7 @@ export interface ITileMap {
      * Returns the tile set that contains the tile type with the given id, or null if it's not
      * available.
      */
-    getTileset(tileType: TileTypeId): ITileset | null;
+    //getTileset(tileType: TileTypeId): ITileset | null;
 
     /**
      * Returns the tile at the given coordinates, or null if it's not loaded.

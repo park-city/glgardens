@@ -1,63 +1,47 @@
-import { BackingContextType, IBackingContext } from './typedefs';
+import React from "react"
+import { BackingContextType } from '../renderer/typedefs';
 
 /**
  * A backing context that uses an HTML canvas. The canvas may be destroyed and recreated, so there's
  * a wrapper div around it.
  */
-export class BackingCanvas implements IBackingContext {
+export class BackingCanvas extends React.Component {
     /** The wrapper div around the canvas. */
-    node: HTMLDivElement;
     canvas!: HTMLCanvasElement;
     context: WebGL2RenderingContext | WebGLRenderingContext | CanvasRenderingContext2D | null = null;
     maxPixelScale = 2;
 
+    /** dynamic properties **/
     get width(): number {
         return this.canvas.width / this.pixelScale;
     }
-
     get height(): number {
         return this.canvas.height / this.pixelScale;
     }
-
     get pixelScale(): number {
         return Math.min(this.maxPixelScale, Math.ceil(window.devicePixelRatio));
     }
 
-    constructor(node: HTMLDivElement) {
-        this.node = node;
-        window.addEventListener('resize', this.didResize);
-    }
-
-    dispose() {
-        window.removeEventListener('resize', this.didResize);
+    render() {
+        return <div>
+            <canvas width="100%" height="100%"></canvas>
+        </div>
     }
 
     /**
      * Resizes the canvas to fit. Call this method when the node is resized. Window resizes are
      * handled automatically.
      */
-    didResize = () => {
+    didResize() {
         this.canvas.width = this.canvas.offsetWidth * this.pixelScale;
         this.canvas.height = this.canvas.offsetHeight * this.pixelScale;
     };
+    componentDidMount() {
+        window.addEventListener('resize', this.didResize);
+    };
 
-    /** Recreates the canvas element. */
-    recreateCanvas() {
-        if (this.canvas) {
-            this.node.removeChild(this.canvas);
-        }
-        this.canvas = document.createElement('canvas');
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.node.appendChild(this.canvas);
-        this.didResize();
-    }
-
+    /** Recreates the canvas context. **/
     createContext(type: BackingContextType): boolean {
-        if (!this.canvas || this.context) {
-            this.recreateCanvas();
-        }
-
         switch (type) {
             case BackingContextType.Canvas2D:
                 this.context = this.canvas.getContext('2d');
@@ -83,3 +67,4 @@ export class BackingCanvas implements IBackingContext {
         return false;
     }
 }
+export default BackingCanvas;
