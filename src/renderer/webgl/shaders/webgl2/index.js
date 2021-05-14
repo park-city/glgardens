@@ -1,7 +1,7 @@
-export const compositeVert           = require('raw-loader!./composite.vert').default;
-export const compositeBloomThresFrag = require('raw-loader!./composite-bloom-thres.frag').default;
-export const compositeBloomBlurFrag  = require('raw-loader!./composite-bloom-blur.frag').default;
-export const compositeBloomFinalFrag = require('raw-loader!./composite-bloom-final.frag').default;
-export const compositeFinalFrag      = require('raw-loader!./composite-final.frag').default;
-export const tileChunkVert           = require('raw-loader!./tile-chunk.vert').default;
-export const tileChunkFrag           = require('raw-loader!./tile-chunk.frag').default;
+export compositeVert from './composite.vert';
+export compositeBloomThresFrag from './composite-bloom-thres.frag';
+export compositeBloomBlurFrag from './composite-bloom-blur.frag';
+export compositeBloomFinalFrag from './composite-bloom-final.frag';
+export compositeFinalFrag from './composite-final.frag';
+export tileChunkVert from './tile-chunk.vert';
+export tileChunkFrag from './tile-chunk.frag';

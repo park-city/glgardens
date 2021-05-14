@@ -54,7 +54,6 @@ export class GLShaderStage {
                     fancyLog.push(sourceLines[+m[2] - 1]);
                 }
             }
-            console.log(source);
             throw new Error(`Failed to compile shader ${name}:\n${fancyLog.join('\n')}`);
         }
     }
