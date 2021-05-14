@@ -1,6 +1,6 @@
 import React from "react"
 import { CentralPark } from '../maplist';
-import { BackingCanvas } from './backing-canvas'
+import { BackingCanvas } from '../renderer/backing-canvas'
 import { NetgardensWebGLRenderer } from "../renderer";
 
 import { PlaneSubspace } from '../renderer/geom-utils';
@@ -31,26 +31,22 @@ class Renderer extends React.Component
 			useLinearNormals: false,
 			// super laggy on android. works fine everywhere else it seems
 			enablePointLights: !navigator.userAgent.includes('Android'),
-
 			debugType: 'normal',
 		};
 	}
 
 	makeRenderer() {
 		let caps = this.getCaps();
-		let map = CentralPark; // TODO: Make dynamic!
+		let map = CentralPark(); // TODO: Make dynamic!
+		let ctx = new BackingCanvas(this.canvas.current);
 
-		//this.renderer = new NetgardensWebGLRenderer(this.canvas.current, null, caps);
-		//this.renderer.render();
+		this.renderer = new NetgardensWebGLRenderer(ctx, map, caps);
+		this.renderer.render();
 	};
 
 	render() { 
-		return <BackingCanvas ref={this.canvas}></BackingCanvas>
+		return <canvas width="100%" height="100%" ref={this.canvas}></canvas>
 	}
-
-	/*render() {
-		return <div>Hello!</div>
-	}*/
 
 	// initialization stuff
 	componentDidMount() {

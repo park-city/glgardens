@@ -1,6 +1,4 @@
-import glsl from 'glslify';
-
-export const compositeFinalVert = glsl.file('./composite-final.vert');
-export const compositeFinalFrag = glsl.file('./composite-final.frag');
-export const tileChunkVert = glsl.file('./tile-chunk.vert');
-export const tileChunkFrag = glsl.file('./tile-chunk.frag');
+export { default as compositeFinalVert } from 'raw-loader!./composite-final.vert';
+export { default as compositeFinalFrag } from 'raw-loader!./composite-final.frag';
+export { default as tileChunkVert } from 'raw-loader!./tile-chunk.vert';
+export { default as tileChunkFrag } from 'raw-loader!./tile-chunk.frag';

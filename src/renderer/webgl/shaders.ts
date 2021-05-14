@@ -70,8 +70,19 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
     ].filter(x => x).join('\n');
 
     if (isGL2) {
+        console.log(gl2Shaders);
         const cs = (n: string, s: GLShaderStageType, u: GLShaderUniforms) => {
-            const source = gl2Shaders[n].replace(/(#version .*\n)/, '$1' + prelude + '\n');
+            let source = gl2Shaders[n];
+            console.log(n);
+            console.log(source);
+            // fix raw-loader being a very bad package
+            source = source.replace("export default \"", "");
+            source = source.slice(0, -2); // remove trailing quote mark and ;
+            source = source.replaceAll("\\n", "\n");
+            source = source.replaceAll('\\"', '"');
+            console.log(source);
+            // continue
+            source = source.replace(/(#version .*\n)/, '$1' + prelude + '\n');
             return new GLShaderStage(gl, n, s, source, u);
         };
 

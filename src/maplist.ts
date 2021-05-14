@@ -1,8 +1,10 @@
-import MapData from "./renderer/mapdata"
+import { MapData } from "./renderer/mapdata"
+import { GeometryType } from "./renderer/typedefs"
 
 // tilemap definitions (TODO: LOAD FROM SERVER)
 // also, should these even be stored like this? idk lol
-export const CentralPark = new MapData(
+export function CentralPark() {
+	return new MapData(
 	{
 		color: 'central-park 2.png',
 		normal: 'central-park 2-normal.png',
@@ -38,8 +40,10 @@ export const CentralPark = new MapData(
 		27: { frames: [[4, 7]], pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] } },
 	},
 	[8, 8]
-);
-export const CyberTest = new MapData(
+	);
+}
+export function CyberTest() {
+	return new MapData(
 	{
 		color: 'cybertest-color.png',
 		normal: 'cybertest-normal.png',
@@ -55,4 +59,5 @@ export const CyberTest = new MapData(
 		112: { frames: [[0, 3]], pointLight: { pos: [0.5, 0.5, 0.5], radiance: [80, 0, 4] } },
 	},
 	[4, 4]
-);
+	);
+}

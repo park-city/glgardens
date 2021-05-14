@@ -1,6 +1,10 @@
 import React from "react"
+import dynamic from 'next/dynamic'
 import TouchControls from "../components/touchcontrols"
-import Renderer from "../components/renderer"
+const Renderer = dynamic(
+	() => import("../components/renderer"),
+	{ ssr: false }
+);
 
 class HomePage extends React.Component {
 	render() {

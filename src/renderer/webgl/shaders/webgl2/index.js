@@ -1,9 +1,7 @@
-import glsl from 'glslify';
-
-export const compositeVert = glsl.file('./composite.vert');
-export const compositeBloomThresFrag = glsl.file('./composite-bloom-thres.frag');
-export const compositeBloomBlurFrag = glsl.file('./composite-bloom-blur.frag');
-export const compositeBloomFinalFrag = glsl.file('./composite-bloom-final.frag');
-export const compositeFinalFrag = glsl.file('./composite-final.frag');
-export const tileChunkVert = glsl.file('./tile-chunk.vert');
-export const tileChunkFrag = glsl.file('./tile-chunk.frag');
+export const compositeVert           = require('raw-loader!./composite.vert').default;
+export const compositeBloomThresFrag = require('raw-loader!./composite-bloom-thres.frag').default;
+export const compositeBloomBlurFrag  = require('raw-loader!./composite-bloom-blur.frag').default;
+export const compositeBloomFinalFrag = require('raw-loader!./composite-bloom-final.frag').default;
+export const compositeFinalFrag      = require('raw-loader!./composite-final.frag').default;
+export const tileChunkVert           = require('raw-loader!./tile-chunk.vert').default;
+export const tileChunkFrag           = require('raw-loader!./tile-chunk.frag').default;

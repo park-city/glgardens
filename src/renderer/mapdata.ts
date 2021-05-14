@@ -158,7 +158,10 @@ s
 		this.mapData = this.loadMapData(this.mapPath);
 
 		// FIXME: this might fail because of the promises
-		this.pixelSize = [this.images.color.width, this.images.color.height];
-		this.tileTypes = Object.keys(this.tiles).map(x => +x);
+		//this.pixelSize = [this.images.color.width, this.images.color.height];
+		//this.tileTypes = Object.keys(this.tiles).map(x => +x);
+		this.pixelSize = [1024, 1024];
+		this.tileTypes = [0,1,2,3,4,5,6,7,8,9,10,11,20,21,22,23,24,25,26,27];
+
 	}
 }
