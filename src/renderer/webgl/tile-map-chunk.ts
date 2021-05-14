@@ -9,11 +9,13 @@ import { PlaneSubspace } from '../geom-utils';
 import { MAX_POINT_LIGHTS, UNIFORM_BLOCKS } from './shaders';
 import { setNormalAlphaBlending } from './gl-utils';
 import { TextureArray } from './texture-allocator';
+import { Macrotile } from './tile-map-macrotile';
 
 export const CHUNK_SIZE = 8;
 const PROJECTION_ANGLE = 60 / 180 * Math.PI;
 const TEXTURE_ASPECT = 1;
 const LOAD_ANIM_UPDATE_TIME = 6;
+const LOAD_ANIM_COMPLETE_TIME = 999;
 export const MAX_TOTAL_POINT_LIGHTS = 16;
 
 export type TileMapChunkBatchState = {
@@ -22,7 +24,6 @@ export type TileMapChunkBatchState = {
     texNormal?: TextureArray,
     texMaterial?: TextureArray,
 };
-export const EMPTY_BATCH_STATE: TileMapChunkBatchState = {};
 
 type ChunkBuffers = {
     vao: GLVertexArray,
@@ -65,6 +66,9 @@ export class TileMapChunk {
     chunkBufferNeedsUpdate = false;
     isMissingTileTypes = false;
     isFirstScreen = false;
+    didRenderContentsOnce = false;
+
+    macrotileCache?: Macrotile;
 
     constructor(ctx: Context, data: TileMapChunkData, tilesetProvider: TileMapChunkTilesetProvider) {
         this.ctx = ctx;
@@ -93,6 +97,8 @@ export class TileMapChunk {
         let prevTileset: Tileset | null = null;
         let indexPos = 0;
         let currentRenderBatch: TileRenderChunk | null = null;
+        let isCacheable = true;
+        let tilesetResolution = 1;
 
         for (let y = 0; y < CHUNK_SIZE; y++) {
             for (let x = 0; x < CHUNK_SIZE; x++) {
@@ -156,6 +162,14 @@ export class TileMapChunk {
                         radiance: tileType.pointLight.radiance,
                     });
                 }
+
+                if (tileType.frames.length > 1) {
+                    // animated!
+                    isCacheable = false;
+                }
+
+                tilesetResolution = Math.max(tilesetResolution, tileset.pixelSize[0] / tileset.size[0]);
+                tilesetResolution = Math.max(tilesetResolution, tileset.pixelSize[1] / tileset.size[1]);
             }
         }
 
@@ -195,8 +209,20 @@ export class TileMapChunk {
             this.uniformBuffers = { chunk, lighting: [] };
         }
 
+        if (this.ctx.params.useMacrotiles && isCacheable && !this.macrotileCache) {
+            this.macrotileCache = new Macrotile(this.ctx, CHUNK_SIZE, 1);
+        } else if (!isCacheable && this.macrotileCache) {
+            this.macrotileCache.dispose();
+            this.macrotileCache = undefined;
+        }
+        if (this.macrotileCache) {
+            this.macrotileCache.invalidate();
+            this.macrotileCache.tilesetResolution = tilesetResolution;
+        }
+
         this.buffersNeedUpdate = false;
         this.chunkBufferNeedsUpdate = true;
+        this.didRenderContentsOnce = false;
         this.updateTiles();
     }
 
@@ -280,6 +306,7 @@ export class TileMapChunk {
                 }
             }
         }
+        this.macrotileCache?.invalidate();
     }
 
     updateTiles() {
@@ -333,8 +360,8 @@ export class TileMapChunk {
         return hasAnimation;
     }
 
-    animateInOrigin: vec2 | null = null;
-    animateInTime = 999; // if data exists on first render call, don't animate in
+    loadAnimOrigin: vec2 | null = null;
+    loadAnimTime = LOAD_ANIM_COMPLETE_TIME; // if data exists on first render call, don't animate in
 
     private getAnimateInOrigin(ctx: FrameContext) {
         const groundPlane = new PlaneSubspace(
@@ -345,19 +372,19 @@ export class TileMapChunk {
         const [p, d] = ctx.camera.projectionRay(ctx.viewport, [0, 0]);
         const result = groundPlane.rayIntersect(p, d);
         if (result) {
-            this.animateInOrigin = vec2.fromValues(result[1][0], result[1][1]);
+            this.loadAnimOrigin = vec2.fromValues(result[1][0], result[1][1]);
         } else {
             const worldPosition = vec4.create();
             vec4.transformMat4(worldPosition, worldPosition, this.transform);
-            this.animateInOrigin = vec2.fromValues(worldPosition[0], worldPosition[1]);
+            this.loadAnimOrigin = vec2.fromValues(worldPosition[0], worldPosition[1]);
         }
     }
 
     get loadAnim() {
         return vec4.fromValues(
-            this.animateInOrigin ? this.animateInOrigin[0] : 0,
-            this.animateInOrigin ? this.animateInOrigin[1] : 0,
-            this.animateInTime,
+            this.loadAnimOrigin ? this.loadAnimOrigin[0] : 0,
+            this.loadAnimOrigin ? this.loadAnimOrigin[1] : 0,
+            this.loadAnimTime,
             this.isFirstScreen ? 1 : 0,
         );
     }
@@ -378,16 +405,18 @@ export class TileMapChunk {
 
         if (!this.tileRenderBatches.length && !this.buffersNeedUpdate) {
             // no data loaded! reset animation and quit
-            this.animateInTime = 0;
-            this.animateInOrigin = null;
+            this.loadAnimTime = 0;
+            this.loadAnimOrigin = null;
             return { pointLightsDidChange };
         }
 
         // loading animation
-        if (!this.animateInOrigin) this.getAnimateInOrigin(ctx);
-        this.animateInTime += deltaTime;
-        if (this.animateInTime < LOAD_ANIM_UPDATE_TIME) {
+        if (!this.loadAnimOrigin) this.getAnimateInOrigin(ctx);
+        this.loadAnimTime += deltaTime;
+        if (this.loadAnimTime < LOAD_ANIM_UPDATE_TIME) {
             this.chunkBufferNeedsUpdate = true;
+        } else {
+            this.loadAnimTime = LOAD_ANIM_COMPLETE_TIME;
         }
 
         if (this.chunkBufferNeedsUpdate) {
@@ -406,6 +435,16 @@ export class TileMapChunk {
             return { pointLightsDidChange };
         }
 
+        if (this.loadAnimTime >= LOAD_ANIM_UPDATE_TIME && this.macrotileCache
+            && !this.macrotileCache.isValid && this.didRenderContentsOnce) {
+            // only cache if contents have been rendered before
+            // otherwise, updates may be incomplete and some buffers may not exist
+            // TODO: have an extra cache pass?
+            this.macrotileCache.beginCacheRender();
+            this.renderContents();
+            this.macrotileCache.finishCacheRender();
+        }
+
         return { pointLightsDidChange };
     }
 
@@ -417,11 +456,30 @@ export class TileMapChunk {
     render(ctx: FrameContext, batchState?: TileMapChunkBatchState) {
         if (!this.buffers || !this.tileRenderBatches.length) return false;
 
-        this.renderContents(batchState);
+        if (this.macrotileCache?.isValid) {
+            this.renderCached(batchState);
+        } else {
+            this.renderContents(batchState);
+        }
         return true;
     }
 
-    private renderContents(batchState = EMPTY_BATCH_STATE) {
+    private renderCached(batchState: TileMapChunkBatchState = {}) {
+        const macrotileShader = this.ctx.shaders.macrotile;
+        macrotileShader.bind();
+        if (this.uniformBuffers) {
+            macrotileShader.bindUniformBlock('UChunk', this.uniformBuffers.chunk);
+        } else {
+            macrotileShader.setUniform('u_chunk_transform', this.transform);
+        }
+        this.macrotileCache?.render();
+        if (batchState) {
+            batchState.tileset = batchState.texColor = undefined;
+        }
+        this.ctx.shaders.tileChunk.bind();
+    }
+
+    private renderContents(batchState = {}) {
         const { gl } = this.ctx;
 
         const tileChunkShader = this.ctx.shaders.tileChunk;
@@ -477,6 +535,8 @@ export class TileMapChunk {
             }
         }
         buffers.vao.unbind();
+
+        this.didRenderContentsOnce = true;
     }
 
     private bindTileset(tileset: Tileset, batchState: TileMapChunkBatchState) {

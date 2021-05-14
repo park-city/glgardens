@@ -310,6 +310,17 @@ export class TileMap {
         let renderStart = Date.now();
         let didCreateAChunk = false;
 
+        // for cache renders
+        const tileChunkShader = this.ctx.shaders.tileChunk;
+        tileChunkShader.bind();
+        if (this.uniformBuffers) {
+            tileChunkShader.bindUniformBlock('UGlobalLighting', this.uniformBuffers.lighting);
+        } else {
+            tileChunkShader.setUniform('u_gl_ambient_radiance', this.ambientLightRadiance);
+            tileChunkShader.setUniform('u_gl_sun_dir', this.sunLightDir);
+            tileChunkShader.setUniform('u_gl_sun_radiance', this.sunLightRadiance);
+        }
+
         for (const [x, y] of chunks) {
             const key = TileMap.encodeChunkKey(x, y);
 
@@ -324,6 +335,8 @@ export class TileMap {
 
             const chunk = this.chunks.get(key)! as ChunkEntry;
             chunk.lastUpdate = Date.now();
+            // TODO: invalidate macrotile cache if global lighting changed
+            // TODO: maybe pass the global lighting here instead of in gl state above?
             const updates = chunk.chunk.update(ctx);
 
             if (updates.pointLightsDidChange) {
@@ -349,12 +362,21 @@ export class TileMap {
         const chunks = this.currentView.renderChunks;
 
         // render chunks
+        const macrotileShader = this.ctx.shaders.macrotile;
         const tileChunkShader = this.ctx.shaders.tileChunk;
-        tileChunkShader.bind();
         if (this.uniformBuffers) {
+            // FIXME don't bind uniform blocks twice
+            macrotileShader.bind();
+            macrotileShader.bindUniformBlock('UCamera', this.uniformBuffers.camera);
+            tileChunkShader.bind();
             tileChunkShader.bindUniformBlock('UCamera', this.uniformBuffers.camera);
             tileChunkShader.bindUniformBlock('UGlobalLighting', this.uniformBuffers.lighting);
         } else {
+            macrotileShader.bind();
+            macrotileShader.setUniform('u_proj', ctx.proj);
+            macrotileShader.setUniform('u_view', ctx.view);
+            macrotileShader.setUniform('u_camera_pos', ctx.camera.position);
+            tileChunkShader.bind();
             tileChunkShader.setUniform('u_proj', ctx.proj);
             tileChunkShader.setUniform('u_view', ctx.view);
             tileChunkShader.setUniform('u_camera_pos', ctx.camera.position);

@@ -7,6 +7,7 @@ uniform mat4 u_view;
 uniform mat4 u_chunk_transform;
 uniform vec4 u_chunk_load_anim;
 uniform vec3 u_camera_pos;
+uniform float u_cache_render;
 
 attribute vec3 a_position;
 attribute vec2 a_uv;
@@ -33,5 +34,5 @@ void main() {
     v_cube_pos = a_position - a_obj_pos;
     v_cube_size = vec3(1, 1, 1);
 
-    gl_Position = u_proj * u_view * vec4(world_pos, 1);
+    gl_Position = u_proj * u_view * vec4(mix(world_pos, a_position, u_cache_render), 1);
 }

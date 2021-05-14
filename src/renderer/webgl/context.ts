@@ -19,6 +19,8 @@ export type ContextParams = {
     useFloatNormals: boolean,
     /** If true, point lights will be enabled. */
     enablePointLights: boolean,
+    /** If true, macrotiles will be used to cache rendered chunks. */
+    useMacrotiles: boolean,
 
     /** Debug flags. */
     debug?: { [k: string]: unknown },
@@ -29,7 +31,16 @@ export type Context = {
     gl2: WebGL2RenderingContext | null,
     shaders: Shaders,
     params: ContextParams,
+    getShared<T extends Disposable>(k: SharedContextData<T>): T,
 };
+
+export interface SharedContextData<T extends Disposable> {
+    name: string;
+    init(ctx: Context): T;
+}
+export interface Disposable {
+    dispose(): void;
+}
 
 export type FrameContext = {
     /** Projection matrix */

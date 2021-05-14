@@ -2,9 +2,8 @@ import { GLFramebuffer } from './gl-fbo';
 import { Context, FrameContext } from './context';
 import { TextureFormat } from './typedefs';
 import { setNormalAlphaBlending } from './gl-utils';
-import { GLVertexArray } from './gl-vao';
-import { GLBuffer, GLBufferType } from './gl-buffer';
 import { Texture2D } from './texture-allocator';
+import { SHARED_QUAD } from './quad';
 
 type BloomSwap = {
     blitMipTarget: Texture2D,
@@ -23,18 +22,25 @@ export class Composite {
     composite: GLFramebuffer;
     /** Swap buffers used for bloom. */
     bloomSwap?: BloomSwap;
-    quad: GLVertexArray;
+
+    static getFormat(ctx: Context) {
+        if (ctx.gl2 && (ctx.params.fboHalfFloat || ctx.params.fboFloat)) {
+            return (ctx.params.fboHalfFloat && ctx.params.halfFloatLinear)
+                ? TextureFormat.RGBA16F
+                : (ctx.params.fboFloat && ctx.params.floatLinear)
+                    ? TextureFormat.RGBA32F
+                    : ctx.params.fboHalfFloat ? TextureFormat.RGBA16F : TextureFormat.RGBA32F;
+        } else {
+            return TextureFormat.RGBA8;
+        }
+    }
 
     constructor(ctx: Context) {
         this.ctx = ctx;
         this.composite = new GLFramebuffer(this.ctx.gl);
 
         if (ctx.gl2 && (ctx.params.fboHalfFloat || ctx.params.fboFloat)) {
-            const floatFmt = (ctx.params.fboHalfFloat && ctx.params.halfFloatLinear)
-                ? TextureFormat.RGBA16F
-                : (ctx.params.fboFloat && ctx.params.floatLinear)
-                    ? TextureFormat.RGBA32F
-                    : ctx.params.fboHalfFloat ? TextureFormat.RGBA16F : TextureFormat.RGBA32F;
+            const floatFmt = Composite.getFormat(ctx);
 
             this.composite.colorFormats = [floatFmt, TextureFormat.R8];
 
@@ -70,22 +76,6 @@ export class Composite {
         } else {
             this.composite.colorFormats = [TextureFormat.RGBA8];
         }
-
-        this.quad = new GLVertexArray(this.ctx.gl);
-        const quadBuffer = new GLBuffer(this.ctx.gl, GLBufferType.Array);
-        quadBuffer.bind();
-        quadBuffer.setData(new Float32Array([
-            0, 0,
-            1, 0,
-            0, 1,
-            1, 1,
-        ]));
-        this.quad.bind();
-        this.quad.update(null, [{
-            buffer: quadBuffer,
-            size: 2,
-        }]);
-        this.quad.unbind();
     }
 
     begin(ctx: FrameContext) {
@@ -104,7 +94,8 @@ export class Composite {
         const { gl } = this.ctx;
 
         gl.disable(gl.DEPTH_TEST);
-        this.quad.bind();
+        const quad = this.ctx.getShared(SHARED_QUAD);
+        quad.bind();
 
         if (this.bloomSwap) {
             gl.disable(gl.BLEND);
@@ -113,7 +104,7 @@ export class Composite {
             const bmt = this.bloomSwap.blitMipTarget;
             bmt.bind(0);
             bmt.resize(gl.drawingBufferWidth, gl.drawingBufferHeight);
-            gl.copyTexImage2D(gl.TEXTURE_2D, 0, bmt.glInternalFormat, 0, 0, bmt.size[0], bmt.size[1], 0);
+            gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, bmt.size[0], bmt.size[1]);
             gl.generateMipmap(gl.TEXTURE_2D);
 
             const runBloomScale = (swap0: GLFramebuffer, swap1: GLFramebuffer, scale: number) => {
@@ -126,18 +117,18 @@ export class Composite {
                 swap0.bind();
                 this.ctx.shaders.compositeBloomThres!.bind();
                 bmt.bind(0);
-                this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+                quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
                 swap1.bind();
                 this.ctx.shaders.compositeBloomBlur!.bind();
                 this.ctx.shaders.compositeBloomBlur!.setUniform('u_vert', 0);
                 swap0.color[0].bind(0);
-                this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+                quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
                 swap0.bind();
                 this.ctx.shaders.compositeBloomBlur!.setUniform('u_vert', 1);
                 swap1.color[0].bind(0);
-                this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+                quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
                 swap1.invalidate();
             };
@@ -157,11 +148,11 @@ export class Composite {
             this.ctx.shaders.compositeBloomFinal!.bind();
             this.ctx.shaders.compositeBloomFinal!.setUniform('u_alpha', 1 / 3);
             this.bloomSwap.swap00.color[0].bind(0);
-            this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+            quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
             this.bloomSwap.swap10.color[0].bind(0);
-            this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+            quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
             this.bloomSwap.swap20.color[0].bind(0);
-            this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+            quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
 
             this.bloomSwap.swap00.invalidate();
             this.bloomSwap.swap10.invalidate();
@@ -193,7 +184,7 @@ export class Composite {
             this.composite.color[1].bind(1);
         }
 
-        this.quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
-        this.quad.unbind();
+        quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+        quad.unbind();
     }
 }

@@ -5,7 +5,7 @@ import {
     NetgardensRenderer,
 } from '../typedefs';
 import { Camera } from '../camera';
-import { Context, FrameContext } from './context';
+import { Context, Disposable, FrameContext, SharedContextData } from './context';
 import { WebGLContext } from './typedefs';
 import { initShaders } from './shaders';
 import { isWebGL2 } from './gl-utils';
@@ -20,6 +20,7 @@ export type WebGLGraphicsSettings = {
     useFloatNormals?: boolean,
     useLinearNormals?: boolean,
     enablePointLights?: boolean,
+    useMacrotiles?: boolean,
     debug?: { [k: string]: unknown },
 };
 const DEFAULT_SETTINGS: WebGLGraphicsSettings = {
@@ -28,6 +29,7 @@ const DEFAULT_SETTINGS: WebGLGraphicsSettings = {
     useFloatNormals: false,
     useLinearNormals: false,
     enablePointLights: true,
+    useMacrotiles: false,
 };
 
 export class NetgardensWebGLRenderer implements NetgardensRenderer {
@@ -92,6 +94,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
             useFloatNormals: !!settings.useFloatNormals,
             useLinearNormals: !!settings.useLinearNormals,
             enablePointLights: !!settings.enablePointLights,
+            useMacrotiles: !!settings.useMacrotiles,
             debug: settings.debug,
         };
 
@@ -119,6 +122,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
             gl2,
             shaders: initShaders(gl, params),
             params,
+            getShared: this.getShared,
         };
 
         this.tilesetMapping = new TilesetMapping(this.ctx, this.map);
@@ -126,6 +130,14 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
         this.composite = new Composite(this.ctx);
         this.didInit = true;
     }
+
+    sharedContextData = new Map();
+    getShared = <T extends Disposable> (k: SharedContextData<T>) => {
+        if (!this.sharedContextData.has(k.name)) {
+            this.sharedContextData.set(k.name, k.init(this.ctx));
+        }
+        return this.sharedContextData.get(k.name);
+    };
 
     lastTime = Date.now();
     time = 0;

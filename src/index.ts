@@ -213,6 +213,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         useLinearNormals: false,
         // super laggy on android. works fine everywhere else it seems
         enablePointLights: !navigator.userAgent.includes('Android'),
+        useMacrotiles: false,
 
         debugType: 'normal',
     };
@@ -379,6 +380,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         <label for="ds-linear-normals">Smooth Normals</label>
         <input type="checkbox" id="ds-point-lights" />
         <label for="ds-point-lights">Point Lights</label>
+        <input type="checkbox" id="ds-macrotiles" />
+        <label for="ds-macrotiles">GFX Cache (⚠)</label>
         `;
 
         const rendererType = debugBarSettings.querySelector('#renderer-type')! as HTMLSelectElement;
@@ -400,6 +403,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         rendererCheckbox('#renderer-float', 'float', hasFloatFBO);
         rendererCheckbox('#ds-linear-normals', 'useLinearNormals', true);
         rendererCheckbox('#ds-point-lights', 'enablePointLights', true);
+        rendererCheckbox('#ds-macrotiles', 'useMacrotiles', true);
 
         const pi = ['>', '||'];
         const playPause = debugBarSettings.querySelector('#play-pause')!;

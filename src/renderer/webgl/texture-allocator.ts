@@ -193,32 +193,42 @@ class Texture2DArray implements TextureArray {
     readonly gl: WebGL2RenderingContext;
     readonly texture: WebGLTexture;
     readonly glFormat: GLenum;
+    readonly glInternalFormat: GLenum;
     readonly glType: GLint;
     readonly size: vec2;
-    readonly depth = TEX_ARRAY_SIZE;
+    readonly depth: number;
     slots: (TextureHandle | null)[] = [];
     lastUsedTime = Date.now();
     isDeleted = false;
 
-    private constructor(gl: WebGL2RenderingContext, texture: WebGLTexture, format: GLenum, type: GLint, size: vec2) {
+    private constructor(
+        gl: WebGL2RenderingContext,
+        texture: WebGLTexture,
+        format: GLenum,
+        internalFormat: GLenum,
+        type: GLint,
+        size: vec2,
+        depth: number) {
         this.gl = gl;
         this.texture = texture;
         this.glFormat = format;
+        this.glInternalFormat = internalFormat;
         this.glType = type;
         this.size = size;
-        for (let i = 0; i < TEX_ARRAY_SIZE; i++) this.slots.push(null);
+        this.depth = depth;
+        for (let i = 0; i < this.depth; i++) this.slots.push(null);
     }
 
-    static tryCreate(gl: WebGL2RenderingContext, format: TextureFormat, width: GLuint, height: GLuint): Texture2DArray | null {
-        let glStorageFormat, glFormat, glType;
+    static tryCreate(gl: WebGL2RenderingContext, format: TextureFormat, width: GLuint, height: GLuint, depth: number): Texture2DArray | null {
+        let glInternalFormat, glFormat, glType;
         switch (format) {
             case TextureFormat.RGBA8:
-                glStorageFormat = gl.RGBA8;
+                glInternalFormat = gl.RGBA8;
                 glFormat = gl.RGBA;
                 glType = gl.UNSIGNED_BYTE;
                 break;
             case TextureFormat.RGBA16F:
-                glStorageFormat = gl.RGBA16F;
+                glInternalFormat = gl.RGBA16F;
                 glFormat = gl.RGBA;
                 glType = gl.HALF_FLOAT;
                 break;
@@ -234,9 +244,9 @@ class Texture2DArray implements TextureArray {
         gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texStorage3D(gl.TEXTURE_2D_ARRAY, TEX_MIP_LEVELS, glStorageFormat, width, height, TEX_ARRAY_SIZE);
+        gl.texStorage3D(gl.TEXTURE_2D_ARRAY, TEX_MIP_LEVELS, glInternalFormat, width, height, depth);
 
-        return new Texture2DArray(gl, texture, glFormat, glType, [width, height]);
+        return new Texture2DArray(gl, texture, glFormat, glInternalFormat, glType, [width, height], depth);
     }
 
     isTaken(index: number) {
@@ -340,7 +350,7 @@ export class TextureAllocator {
 
     private tryCreateArray(width: number, height: number, format: TextureFormat) {
         if (this.useGL2Arrays) {
-            return Texture2DArray.tryCreate(this.ctx.gl2!, format, width, height);
+            return Texture2DArray.tryCreate(this.ctx.gl2!, format, width, height, TEX_ARRAY_SIZE);
         } else {
             return Texture2D.tryCreate(this.ctx.gl, format, width, height);
         }

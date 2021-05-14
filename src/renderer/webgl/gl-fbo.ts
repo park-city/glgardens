@@ -28,6 +28,26 @@ export class GLFramebuffer {
         this.gl.viewport(0, 0, this.size[0], this.size[1]);
     }
 
+    forceRemapColor() {
+        const { gl } = this;
+        for (let i = 0; i < this.colorFormats.length; i++) {
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, this.color[i].textures[0], 0);
+        }
+        this.setDrawBuffers();
+    }
+
+    private setDrawBuffers() {
+        const { gl } = this;
+        if (isWebGL2(gl)) {
+            const gl2 = gl as WebGL2RenderingContext;
+            const buffers = [];
+            for (let i = 0; i < this.colorFormats.length; i++) {
+                buffers.push(gl2.COLOR_ATTACHMENT0 + i)
+            }
+            gl2.drawBuffers(buffers);
+        }
+    }
+
     private updateAttachments() {
         const { gl } = this;
         let updatedAttachments = false;
@@ -53,14 +73,7 @@ export class GLFramebuffer {
             }
         }
 
-        if (updatedAttachments && isWebGL2(gl)) {
-            const gl2 = gl as WebGL2RenderingContext;
-            const buffers = [];
-            for (let i = 0; i < this.colorFormats.length; i++) {
-                buffers.push(gl2.COLOR_ATTACHMENT0 + i)
-            }
-            gl2.drawBuffers(buffers);
-        }
+        if (updatedAttachments) this.setDrawBuffers();
 
         if (!this.depth || this.depthSize[0] !== this.size[0] || this.depthSize[1] !== this.size[1]) {
             if (!this.depth) {

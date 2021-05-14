@@ -8,6 +8,7 @@ export class Camera {
     perspective = 0;
     fov = Math.PI / 3;
     orthoScale = 32;
+    invertY = true;
 
     get actualOrthoScale() {
         return this.orthoScale;
@@ -34,7 +35,7 @@ export class Camera {
             0, 0, 1, 0,
             0, 0, 0, 1,
         );
-        mat4.multiply(projection, invertY, projection);
+        if (this.invertY) mat4.multiply(projection, invertY, projection);
 
         return projection;
     }

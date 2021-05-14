@@ -6,6 +6,7 @@ precision highp float;
 
 layout(std140) uniform UCamera { Camera u_camera; };
 layout(std140) uniform UChunk { Chunk u_chunk; };
+uniform float u_cache_render;
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec2 a_uv;
 layout(location = 2) in vec2 a_tile;
@@ -31,5 +32,5 @@ void main() {
     v_cube_pos = a_position - a_obj_pos;
     v_cube_size = vec3(1, 1, 1);
 
-    gl_Position = u_camera.proj * u_camera.view * vec4(world_pos, 1);
+    gl_Position = u_camera.proj * u_camera.view * vec4(mix(world_pos, a_position, u_cache_render), 1);
 }

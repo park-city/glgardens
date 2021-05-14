@@ -22,6 +22,7 @@ export interface Shaders {
     compositeBloomFinal?: GLShader,
     compositeFinal: GLShader,
     tileChunk: GLShader,
+    macrotile: GLShader,
 }
 
 export const MAX_POINT_LIGHTS = 4;
@@ -92,14 +93,24 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_color: GLUniformType.Sampler2,
                 u_tonemap: GLUniformType.Sampler2,
             }),
+            macrotileVert: cs('macrotileVert', GLShaderStageType.Vertex, {
+                UCamera: GLUniformType.Block,
+                UChunk: GLUniformType.Block,
+            }),
+            macrotileFrag: cs('macrotileFrag', GLShaderStageType.Fragment, {
+                u_macrotile_color: GLUniformType.Sampler2,
+                u_macrotile_tonemap: GLUniformType.Sampler2,
+            }),
             tileChunkVert: cs('tileChunkVert', GLShaderStageType.Vertex, {
                 UCamera: GLUniformType.Block,
                 UChunk: GLUniformType.Block,
+                u_cache_render: GLUniformType.Float,
             }),
             tileChunkFrag: cs('tileChunkFrag', GLShaderStageType.Fragment, {
                 UChunk: GLUniformType.Block,
                 UGlobalLighting: GLUniformType.Block,
                 UChunkLighting: GLUniformType.Block,
+                u_cache_render: GLUniformType.Float,
                 u_light_pass_index: GLUniformType.Int,
                 u_tileset_params: GLUniformType.Vec3,
                 u_tileset_color: GLUniformType.Sampler3,
@@ -136,6 +147,10 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_tileset_normal: 1,
                 u_tileset_material: 2,
             }),
+            macrotile: cp('macrotile', stages.macrotileVert, stages.macrotileFrag, {
+                u_macrotile_color: 0,
+                u_macrotile_tonemap: 1,
+            }),
         };
     } else {
         const cs = (n: string, s: GLShaderStageType, u: GLShaderUniforms) => {
@@ -147,6 +162,15 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
             compositeFinalVert: cs('compositeFinalVert', GLShaderStageType.Vertex, {}),
             compositeFinalFrag: cs('compositeFinalFrag', GLShaderStageType.Fragment, {
                 u_color: GLUniformType.Sampler2,
+            }),
+            macrotileVert: cs('macrotileVert', GLShaderStageType.Vertex, {
+                u_proj: GLUniformType.Mat4,
+                u_view: GLUniformType.Mat4,
+                u_camera_pos: GLUniformType.Vec3,
+                u_chunk_transform: GLUniformType.Mat4,
+            }),
+            macrotileFrag: cs('macrotileFrag', GLShaderStageType.Fragment, {
+                u_macrotile_color: GLUniformType.Sampler2,
             }),
             tileChunkVert: cs('tileChunkVert', GLShaderStageType.Vertex, {
                 u_proj: GLUniformType.Mat4,
@@ -160,6 +184,7 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_tileset_normal: GLUniformType.Sampler2,
                 u_tileset_material: GLUniformType.Sampler2,
                 u_tileset_params: GLUniformType.Vec3,
+                u_cache_render: GLUniformType.Float,
                 u_light_pass_index: GLUniformType.Int,
                 u_gl_ambient_radiance: GLUniformType.Vec3,
                 u_gl_sun_dir: GLUniformType.Vec3,
@@ -184,6 +209,12 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 'a_position',
             ], {
                 u_color: 0,
+            }),
+            macrotile: cp('macrotile', stages.macrotileVert, stages.macrotileFrag, [
+                'a_position',
+                'a_uv',
+            ], {
+                u_macrotile_color: 0,
             }),
             tileChunk: cp('tileChunk', stages.tileChunkVert, stages.tileChunkFrag, [
                 'a_position',
