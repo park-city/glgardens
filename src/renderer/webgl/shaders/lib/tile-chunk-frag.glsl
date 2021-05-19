@@ -48,9 +48,7 @@ void adjust_cube_depth(inout vec3 cube_pos, float i_z) {
 
 void light_fragment(
     in int i_light_pass_index,
-#ifdef SET_FRAG_DEPTH
     in mat4 i_proj_view,
-#endif
     in vec3 i_camera_pos,
     in vec3 i_obj_pos,
     in vec3 i_cube_pos,

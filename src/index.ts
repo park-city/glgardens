@@ -211,8 +211,8 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         float: hasFloatFBO,
         useFloatNormals: false,
         useLinearNormals: false,
-        // super laggy on android. works fine everywhere else it seems
-        enablePointLights: !navigator.userAgent.includes('Android'),
+        // WebGL1 with point lights is super laggy on Android
+        enablePointLights: !navigator.userAgent.includes('Android') || hasWebGL2,
         useMacrotiles: false,
 
         debugType: 'normal',
@@ -223,6 +223,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         geometry: { showGeometry: true },
         lightVolumes: { showLightVolumes: true },
         bloom: { showBloom: true },
+        forceAdreno: { forceAdreno: true },
     };
 
     let renderer: NetgardensWebGLRenderer;

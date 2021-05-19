@@ -7,7 +7,10 @@ precision highp sampler2DArray;
 #ifdef FEATURE_FBO_FLOAT
 #define HDR_COMPOSITE
 #endif
+// setting frag depth seems to incur a severe performance penalty on Android
+#ifndef IS_ADRENO
 #define SET_FRAG_DEPTH
+#endif
 #include "../lib/tile-chunk-frag.glsl"
 
 layout(std140) uniform UCamera { Camera u_camera; };
@@ -44,28 +47,11 @@ void main() {
     if (i_color.a < 0.01) discard;
 
     if (length(i_normal_raw.rgb) > 0.) {
-        // on android, for SOME reason, passing these uniforms to the light_fragment function
-        // directly will cause the values to change.
-        // copying them to local variables first seems to work.
-        GlobalLighting global_lighting = u_global_lighting;
-        // assigning chunk_lighting = u_chunk_lighting causes the program link to fail with an empty
-        // string error. So, instead, we'll be copying them over one by one...
-        ChunkLighting chunk_lighting;
-#ifdef FEATURE_POINT_LIGHTS
-        // reading the point lights uniform makes the shader lag quite a lot, so we won't be reading
-        // anything unless we really need to..
-        chunk_lighting.point_light_count = u_chunk_lighting.point_light_count;
-        for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
-            if (i >= chunk_lighting.point_light_count) break;
-            chunk_lighting.point_lights[i] = u_chunk_lighting.point_lights[i];
-        }
-#endif
-
+        // NOTE: don't remove this inlining, otherwise it breaks on android
+        #pragma inline
         light_fragment(
             u_light_pass_index,
-#ifdef SET_FRAG_DEPTH
             u_camera.proj * u_camera.view,
-#endif
             u_camera.pos,
             v_obj_pos,
             v_cube_pos,
@@ -73,8 +59,8 @@ void main() {
             i_color,
             i_normal_raw,
             i_material_raw,
-            global_lighting,
-            chunk_lighting,
+            u_global_lighting,
+            u_chunk_lighting,
             out_color,
             out_tonemap.r
         );

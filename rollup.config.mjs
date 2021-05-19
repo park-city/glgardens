@@ -10,6 +10,7 @@ import nodeGlobals from 'rollup-plugin-node-globals';
 import nodeBuiltins from 'rollup-plugin-node-builtins';
 import glslify from 'rollup-plugin-glslify';
 import { terser } from 'rollup-plugin-terser';
+import { applyFancyMacros } from './glsl-fancy-macros.mjs';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -70,9 +71,10 @@ function glslInclude() {
 
     return {
         name: 'glsl-include',
-        transform(code, id) {
+        async transform(code, id) {
             if (!GLSL_EXTS.find(e => id.endsWith(e))) return null;
-            return transform.apply(this, [code, id]);
+            const result = await transform.apply(this, [code, id]);
+            return applyFancyMacros(result);
         },
     };
 }

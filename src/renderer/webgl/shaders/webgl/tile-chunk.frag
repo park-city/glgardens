@@ -48,10 +48,12 @@ void main() {
             chunk_lighting.point_lights[i] = light;
         }
 
+        mat4 empty_matrix;
         float out_tonemap;
 
         light_fragment(
             u_light_pass_index,
+            empty_matrix, // projection is unused because fragDepth isn't being set
             u_camera_pos,
             v_obj_pos,
             v_cube_pos,

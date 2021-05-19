@@ -81,6 +81,15 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
 
         const debugInfoExt = gl.getExtension('WEBGL_debug_renderer_info');
 
+        let isAdreno = settings.debug?.forceAdreno || (debugInfoExt
+            ? gl.getParameter(debugInfoExt.UNMASKED_RENDERER_WEBGL).includes('Adreno')
+            : navigator.userAgent.includes('Android')); // probably adreno
+
+        if (isAdreno) {
+            // float buffers don't seem to work properly on Android 11 (all pixels are black)
+            settings.useFboFloat = 'none';
+        }
+
         const params = {
             fboHalfFloat: (settings.useFboFloat === 'half' || settings.useFboFloat === 'full') && (gl2
                 ? !!gl.getExtension('EXT_color_buffer_float') || !!gl.getExtension('EXT_color_buffer_half_float')
@@ -90,6 +99,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
                 : !!gl.getExtension('WEBGL_color_buffer_float')),
             halfFloatLinear: !!gl.getExtension('OES_texture_float_linear') || !!gl.getExtension('OES_texture_half_float_linear'),
             floatLinear: !!gl.getExtension('OES_texture_float_linear'),
+            isAdreno,
 
             useFloatNormals: !!settings.useFloatNormals,
             useLinearNormals: !!settings.useLinearNormals,

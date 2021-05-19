@@ -9,7 +9,6 @@ import { GLBuffer, GLBufferType, GLUniformBuffer } from './gl-buffer';
 import { UNIFORM_BLOCKS } from './shaders';
 import { GLVertexArray } from './gl-vao';
 import { Composite } from './composite';
-import { SHARED_QUAD } from './quad';
 import { setNormalAlphaBlending } from './gl-utils';
 
 const MACROTILE_MAX_SIZE = 1024;

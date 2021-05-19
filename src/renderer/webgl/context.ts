@@ -12,6 +12,8 @@ export type ContextParams = {
     halfFloatLinear: boolean,
     /** If true, float textures can be sampled linearly. */
     floatLinear: boolean,
+    /** True if this is (probably) an Adreno GPU. */
+    isAdreno: boolean,
 
     /** If true, normal textures will be sampled linearly. */
     useLinearNormals: boolean,

@@ -64,7 +64,8 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
 
     const prelude = [
         (isGL2 && (params.fboFloat || params.fboHalfFloat)) && '#define FEATURE_FBO_FLOAT 1',
-        (params.enablePointLights) && '#define FEATURE_POINT_LIGHTS 1',
+        params.enablePointLights && '#define FEATURE_POINT_LIGHTS 1',
+        params.isAdreno && '#define IS_ADRENO 1',
         // debug flags
         (params.debug?.showGeometry) && '#define DEBUG_SHOW_GEOMETRY 1',
         (params.debug?.showLightVolumes) && '#define DEBUG_SHOW_LIGHT_VOLUMES 1',
