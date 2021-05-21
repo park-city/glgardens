@@ -70,7 +70,7 @@ export class GLShader {
     readonly vertex: GLShaderStage;
     readonly fragment: GLShaderStage;
     readonly program: WebGLProgram;
-    readonly uniformLocations: { [name: string]: WebGLUniformLocation } = {};
+    readonly uniformLocations: { [name: string]: WebGLUniformLocation | null } = {};
     readonly uniformBlockLocations: { [name: string]: number } = {};
     uniformBlockBindings: GLUniformBlockBindings;
 
@@ -106,7 +106,9 @@ export class GLShader {
                 gl2.uniformBlockBinding(this.program, loc, bindingIndex);
             } else {
                 const loc = gl.getUniformLocation(program, k);
-                if (!loc) throw new Error(`Could not find uniform ${k} in vertex shader for program ${name}`);
+                if (!loc) {
+                    console.warn(`Could not find uniform ${k} in vertex shader for program ${name}`);
+                }
                 this.uniformLocations[k] = loc;
             }
         }
@@ -122,7 +124,9 @@ export class GLShader {
                 gl2.uniformBlockBinding(this.program, loc, bindingIndex);
             } else {
                 const loc = gl.getUniformLocation(program, k);
-                if (!loc) throw new Error(`Could not find uniform ${k} in fragment shader for program ${name}`);
+                if (!loc) {
+                    console.warn(`Could not find uniform ${k} in fragment shader for program ${name}`);
+                }
                 this.uniformLocations[k] = loc;
             }
         }
@@ -135,6 +139,7 @@ export class GLShader {
     setUniform(name: string, value: GLUniformValue) {
         const type = this.vertex.uniforms[name] || this.fragment.uniforms[name];
         const loc = this.uniformLocations[name];
+        if (loc === null) return;
         switch (type) {
             case GLUniformType.Int:
             case GLUniformType.Sampler2:
