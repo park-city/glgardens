@@ -1,8 +1,14 @@
 // super hacky test page
 
-import { BackingCanvas, GeometryType, NetgardensWebGLRenderer, TileTextureLayer } from './renderer';
+import {
+    BackingCanvas,
+    EntityTextureLayer,
+    GeometryType,
+    NetgardensWebGLRenderer,
+    TileTextureLayer
+} from './renderer';
 import { PlaneSubspace } from './renderer/geom-utils';
-import { mat4, quat, vec3, vec4 } from 'gl-matrix';
+import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 
 document.body.style.background = '#123';
 document.body.style.margin = '0px';
@@ -50,6 +56,65 @@ function loadImage(src: string) {
     });
 }
 
+async function loadModel(src: string) {
+    const res = await fetch(src);
+    const text = await res.text();
+    const lines = text.split('\n');
+    const objVertices = [];
+    const objUvs = [];
+    const objNormals = [];
+    for (const _line of lines) {
+        const line = _line.trim();
+        const parts = line.split(/\s+/);
+        if (parts[0] === 'v') objVertices.push(parts.slice(1).map(x => +x));
+        else if (parts[0] === 'vt') objUvs.push(parts.slice(1).map(x => +x));
+        else if (parts[0] === 'vn') objNormals.push(parts.slice(1).map(x => +x));
+    }
+    const vertices = [];
+    const uvs = [];
+    const normals = [];
+    const indexCache = new Map<string, number>();
+    const faces = [];
+    for (const _line of lines) {
+        const line = _line.trim();
+        const parts = line.split(/\s+/);
+        if (parts[0] === 'f') {
+            const face = [];
+            for (let i = 1; i < parts.length; i++) {
+                const faceVertexParts = parts[i].split('/');
+                const faceVertex = +faceVertexParts[0];
+                const faceUv = +faceVertexParts[1];
+                const faceNormal = +faceVertexParts[2];
+                const indexKey = [faceVertex, faceUv, faceNormal].join('/');
+                let index;
+                if (indexCache.has(indexKey)) {
+                    index = indexCache.get(indexKey);
+                } else {
+                    index = vertices.length;
+                    vertices.push(vec3.fromValues(
+                        objVertices[faceVertex - 1][0] || 0,
+                        objVertices[faceVertex - 1][2] || 0,
+                        objVertices[faceVertex - 1][1] || 0,
+                    ));
+                    uvs.push(vec2.fromValues(
+                        objUvs[faceUv - 1][0] || 0,
+                        1 - (objUvs[faceUv - 1][1] || 0),
+                    ));
+                    normals.push(vec3.fromValues(
+                        objNormals[faceNormal - 1][0] || 0,
+                        objNormals[faceNormal - 1][2] || 0,
+                        objNormals[faceNormal - 1][1] || 0,
+                    ));
+                    indexCache.set(indexKey, index);
+                }
+                face.push(index);
+            }
+            faces.push(face);
+        }
+    }
+    return { vertices, uvs, normals, faces };
+}
+
 const imagePaths = {
     centralPark: 'central-park 2.png',
     centralParkNormal: 'central-park 2-normal.png',
@@ -57,6 +122,11 @@ const imagePaths = {
     cybertestColor: 'cybertest-color.png',
     cybertestNormal: 'cybertest-normal.png',
     cybertestMaterial: 'cybertest-material.png',
+    traintestColor: 'traintest-color.png',
+    traintestNormal: 'traintest-normal.png',
+    traintestMaterial: 'traintest-material.png',
+    traintestTrainColor: 'traintest-train-color.png',
+    traintestTrainMaterial: 'traintest-train-material.png',
 };
 const images = (() => {
     const promises = [];
@@ -90,7 +160,19 @@ const mapData = fetch('testmap2.csv').then(res => {
     };
 });
 
-Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
+const modelPaths = {
+    traintest: 'traintest-geometry.obj',
+};
+const models = (() => {
+    const promises = [];
+    for (const k in modelPaths) {
+        // @ts-ignore
+        promises.push(loadModel(modelPaths[k]).then(res => [k, res]));
+    }
+    return Promise.all(promises).then(results => Object.fromEntries(results));
+})();
+
+Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) => {
     const centralParkTiles = {
         0: { frames: [[0, 0]], geometry: GeometryType.CubeBack },
         1: { frames: [[0, 1]], geometry: GeometryType.CubeBack },
@@ -99,7 +181,10 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         4: { frames: [[0, 4]], geometry: GeometryType.CubeFront },
         5: { frames: [[0, 5]], geometry: GeometryType.Flat },
         6: { frames: [[0, 6]], geometry: GeometryType.CubeBack },
-        7: { frames: [[0, 7]], pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] } },
+        7: {
+            frames: [[0, 7]],
+            pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] }
+        },
         8: {
             frames: [
                 [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7],
@@ -107,7 +192,10 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
                 [3, 0], [3, 1], [3, 2], [3, 3], [3, 4],
             ],
         },
-        9: { frames: [[3, 5]], pointLight: { pos: [0.5, 0.5, 1.3], radiance: [0.2 * 50, 0.7 * 50, 1 * 50] } },
+        9: {
+            frames: [[3, 5]],
+            pointLight: { pos: [0.5, 0.5, 1.3], radiance: [0.2 * 50, 0.7 * 50, 1 * 50] }
+        },
         10: { frames: [[3, 6]] },
         11: { frames: [[3, 7]] },
         20: { frames: [[4, 0]] },
@@ -117,7 +205,10 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         24: { frames: [[4, 4]], geometry: GeometryType.CubeFront },
         25: { frames: [[4, 5]], geometry: GeometryType.Flat },
         26: { frames: [[4, 6]] },
-        27: { frames: [[4, 7]], pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] } },
+        27: {
+            frames: [[4, 7]],
+            pointLight: { pos: [0.5, 0.5, 0.9], radiance: [1 * 80, 0.8 * 50, 0.4 * 50] }
+        },
     };
     const centralPark = {
         pixelSize: [images.centralPark.width, images.centralPark.height] as [number, number],
@@ -157,6 +248,45 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         },
     };
 
+    const traintestTiles = {
+        200: { frames: [[0, 0]] },
+        201: { frames: [[1, 0]] },
+        202: { frames: [[0, 1]] },
+        203: { frames: [[1, 1]] },
+        204: { frames: [[0, 2]] },
+        205: { frames: [[1, 2]] },
+    };
+    const traintest = {
+        pixelSize: [images.traintestColor.width, images.traintestColor.height] as [number, number],
+        textureSize: [4, 4] as [number, number],
+        tileTypes: Object.keys(traintestTiles).map(x => +x),
+        getTexture(layer: TileTextureLayer) {
+            if (layer === TileTextureLayer.Color) return images.traintestColor;
+            if (layer === TileTextureLayer.Normal) return images.traintestNormal;
+            if (layer === TileTextureLayer.Material) return images.traintestMaterial;
+            return null;
+        },
+        getTileType(id: number) {
+            return (traintestTiles as any)[id] || null;
+        },
+    };
+    const traintestEntityMaterial = {
+        pixelSize: [1024, 1024],
+        getTexture(layer: EntityTextureLayer) {
+            if (layer === EntityTextureLayer.Color) return images.traintestTrainColor;
+            if (layer === EntityTextureLayer.Material) return images.traintestTrainMaterial;
+            return null;
+        },
+    };
+    const traintestEntity = {
+        ...models.traintest,
+        material: traintestEntityMaterial,
+        lights: [{
+            pos: vec3.fromValues(0, 0.52, 0.82782),
+            radiance: vec3.fromValues(27, 24, 15),
+        }],
+    };
+
     const delay = 1000;
     const dcSize = 32;
 
@@ -165,34 +295,38 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     const tileSetListeners = new Set<any>();
 
     return {
-        getTileset: (id: number) => {
-            if (id.toString() in centralParkTiles) return centralPark;
-            if (id.toString() in cybertestTiles) return cybertest;
-            return null;
-        },
-        getTile: (x: number, y: number) => {
-            const offX = Math.floor(x / dcSize);
-            const offY = Math.floor(y / dcSize);
-            const offKey = `${offX},${offY}`;
-            if (!loadedSections.has(offKey)) {
-                loadedSections.set(offKey, false);
-                setTimeout(() => {
-                    loadedSections.set(offKey, true);
+        mapData: {
+            getTileset: (id: number) => {
+                if (id.toString() in centralParkTiles) return centralPark;
+                if (id.toString() in cybertestTiles) return cybertest;
+                if (id.toString() in traintestTiles) return traintest;
+                return null;
+            },
+            getTile: (x: number, y: number) => {
+                const offX = Math.floor(x / dcSize);
+                const offY = Math.floor(y / dcSize);
+                const offKey = `${offX},${offY}`;
+                if (!loadedSections.has(offKey)) {
+                    loadedSections.set(offKey, false);
+                    setTimeout(() => {
+                        loadedSections.set(offKey, true);
 
-                    for (const l of mapListeners) {
-                        l(offX * dcSize, offY * dcSize, dcSize, dcSize);
-                    }
-                }, delay);
-            }
-            if (!loadedSections.get(offKey)) return null;
-            return getRawMapTile(x, y);
+                        for (const l of mapListeners) {
+                            l(offX * dcSize, offY * dcSize, dcSize, dcSize);
+                        }
+                    }, delay);
+                }
+                if (!loadedSections.get(offKey)) return null;
+                return getRawMapTile(x, y);
+            },
+            addTilesetUpdateListener: (l: any) => tileSetListeners.add(l),
+            removeTilesetUpdateListener: (l: any) => tileSetListeners.delete(l),
+            addMapUpdateListener: (l: any) => mapListeners.add(l),
+            removeMapUpdateListener: (l: any) => mapListeners.delete(l),
         },
-        addTilesetUpdateListener: (l: any) => tileSetListeners.add(l),
-        removeTilesetUpdateListener: (l: any) => tileSetListeners.delete(l),
-        addMapUpdateListener: (l: any) => mapListeners.add(l),
-        removeMapUpdateListener: (l: any) => mapListeners.delete(l),
+        traintestEntity,
     };
-}).then(mapData => {
+}).then(data => {
     const backingCanvas = new BackingCanvas();
     Object.assign(backingCanvas.node.style, {
         width: '100vw',
@@ -229,7 +363,7 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
     let renderer: NetgardensWebGLRenderer;
     const makeRenderer = () => {
         if (renderer) renderer.dispose();
-        renderer = new NetgardensWebGLRenderer(backingCanvas, mapData, {
+        renderer = new NetgardensWebGLRenderer(backingCanvas, data.mapData, {
             ...rendererSettings,
             useWebGL2: rendererSettings.type === 'gl2',
             useFboFloat: rendererSettings.float ? 'full' : 'none',
@@ -304,6 +438,56 @@ Promise.all([images, mapData]).then(([images, getRawMapTile]) => {
         renderer.tileMap.sunLightRadiance[0] = sunR * (6 * Math.max(0, sunZ) + 10);
         renderer.tileMap.sunLightRadiance[1] = sunR * (15 * Math.max(0, sunZ) + 7);
         renderer.tileMap.sunLightRadiance[2] = sunR * (25 * Math.max(0, sunZ));
+
+        if (!renderer.entities.getEntity('traintest')) {
+            renderer.entities.createEntity('traintest', [data.traintestEntity]);
+        }
+        {
+            const train = renderer.entities.getEntity('traintest')!;
+            const minX = 11.5;
+            const minY = -2.5;
+            const maxX = minX + 6;
+            const maxY = minY + 10;
+            const tParts = [
+                { mode: 'lerp', from: [minX + 0.5, minY, -90], to: [maxX - 0.5, minY, -90], duration: 5 },
+                { mode: 'arc', at: [maxX - 0.5, minY + 0.5], arc: [0.5, -90, 0], duration: 1 },
+                { mode: 'lerp', from: [maxX, minY + 0.5, 0], to: [maxX, maxY - 0.5, 0], duration: 9 },
+                { mode: 'arc', at: [maxX - 0.5, maxY - 0.5], arc: [0.5, 0, 90], duration: 1 },
+                { mode: 'lerp', from: [maxX - 0.5, maxY, 90], to: [minX + 0.5, maxY, 90], duration: 5 },
+                { mode: 'arc', at: [minX + 0.5, maxY - 0.5], arc: [0.5, 90, 180], duration: 1 },
+                { mode: 'lerp', from: [minX, maxY - 0.5, 180], to: [minX, minY + 0.5, 180], duration: 9 },
+                { mode: 'arc', at: [minX + 0.5, minY + 0.5], arc: [0.5, 180, 270], duration: 1 },
+            ];
+            const totalDuration = tParts.map(x => x.duration).reduce((a, b) => a + b);
+            const trainT = t % totalDuration;
+
+            let currentT = 0;
+            let currentPart: any;
+            for (const part of tParts) {
+                if (trainT >= currentT && trainT < currentT + part.duration) {
+                    currentPart = part;
+                    currentT = (trainT - currentT) / part.duration;
+                    break;
+                }
+                currentT += part.duration;
+            }
+            let pos = vec3.create();
+            if (currentPart.mode === 'lerp') {
+                vec3.lerp(pos, currentPart.from, currentPart.to, currentT);
+            } else if (currentPart.mode === 'arc') {
+                const arc = currentPart.arc;
+                const t = (arc[2] - arc[1]) * currentT + arc[1];
+                const tr = t / 180 * Math.PI;
+                const v = vec3.fromValues(arc[0] * Math.cos(tr), arc[0] * Math.sin(tr), 0);
+                vec3.add(pos, [currentPart.at[0], currentPart.at[1], t], v);
+            }
+
+            train.position[0] = pos[0];
+            train.position[1] = pos[1];
+            train.position[2] = 0.15;
+            quat.fromEuler(train.rotation, 0, 0, pos[2]);
+            train.transformNeedsUpdate = true;
+        }
 
         renderer.camera.position = [15, 15, 4];
         renderer.camera.rotation = quat.fromEuler(quat.create(), -60, 0, -45);

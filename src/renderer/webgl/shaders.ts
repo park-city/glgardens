@@ -23,6 +23,7 @@ export interface Shaders {
     compositeFinal: GLShader,
     tileChunk: GLShader,
     macrotile: GLShader,
+    entity: GLShader,
 }
 
 export const MAX_POINT_LIGHTS = 4;
@@ -32,6 +33,7 @@ export const UNIFORM_BLOCK_BINDING = {
     UGlobalLighting: 1,
     UChunkLighting: 2,
     UChunk: 3,
+    UEntity: 4,
 };
 export const UNIFORM_BLOCKS = {
     camera: {
@@ -54,6 +56,9 @@ export const UNIFORM_BLOCKS = {
             pos: GLUBIValue.Vec3,
             radiance: GLUBIValue.Vec3,
         }, MAX_POINT_LIGHTS] as [GLUBIElement, number],
+    },
+    entity: {
+        transform: GLUBIValue.Mat4,
     },
 };
 
@@ -118,6 +123,17 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_tileset_normal: GLUniformType.Sampler3,
                 u_tileset_material: GLUniformType.Sampler3,
             }),
+            entityVert: cs('entityVert', GLShaderStageType.Vertex, {
+                UCamera: GLUniformType.Block,
+                UEntity: GLUniformType.Block,
+            }),
+            entityFrag: cs('entityFrag', GLShaderStageType.Fragment, {
+                UGlobalLighting: GLUniformType.Block,
+                UChunkLighting: GLUniformType.Block,
+                u_light_pass_index: GLUniformType.Int,
+                u_entity_color: GLUniformType.Sampler2,
+                u_entity_material: GLUniformType.Sampler2,
+            }),
         };
 
         const cp = (n: string, v: GLShaderStage, f: GLShaderStage, u: UniformBindings = {}) => {
@@ -151,6 +167,10 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
             macrotile: cp('macrotile', stages.macrotileVert, stages.macrotileFrag, {
                 u_macrotile_color: 0,
                 u_macrotile_tonemap: 1,
+            }),
+            entity: cp('entity', stages.entityVert, stages.entityFrag, {
+                u_entity_color: 0,
+                u_entity_material: 2,
             }),
         };
     } else {
@@ -194,6 +214,22 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_cl_point_light_pos: GLUniformType.Vec3Array,
                 u_cl_point_light_radiance: GLUniformType.Vec3Array,
             }),
+            entityVert: cs('entityVert', GLShaderStageType.Vertex, {
+                u_proj: GLUniformType.Mat4,
+                u_view: GLUniformType.Mat4,
+                u_entity_transform: GLUniformType.Mat4,
+            }),
+            entityFrag: cs('entityFrag', GLShaderStageType.Fragment, {
+                u_entity_color: GLUniformType.Sampler2,
+                u_entity_material: GLUniformType.Sampler2,
+                u_light_pass_index: GLUniformType.Int,
+                u_gl_ambient_radiance: GLUniformType.Vec3,
+                u_gl_sun_dir: GLUniformType.Vec3,
+                u_gl_sun_radiance: GLUniformType.Vec3,
+                u_cl_point_light_count: GLUniformType.Int,
+                u_cl_point_light_pos: GLUniformType.Vec3Array,
+                u_cl_point_light_radiance: GLUniformType.Vec3Array,
+            }),
         };
 
         const cp = (n: string, v: GLShaderStage, f: GLShaderStage, a: string[], u: UniformBindings = {}) => {
@@ -226,6 +262,14 @@ export function initShaders(gl: WebGLContext, params: ContextParams): Shaders {
                 u_tileset_color: 0,
                 u_tileset_normal: 1,
                 u_tileset_material: 2,
+            }),
+            entity: cp('entity', stages.entityVert, stages.entityFrag, [
+                'a_position',
+                'a_uv',
+                'a_normal',
+            ], {
+                u_entity_color: 0,
+                u_entity_material: 2,
             }),
         };
     }

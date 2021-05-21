@@ -3,6 +3,8 @@ export compositeBloomThresFrag from './composite-bloom-thres.frag';
 export compositeBloomBlurFrag from './composite-bloom-blur.frag';
 export compositeBloomFinalFrag from './composite-bloom-final.frag';
 export compositeFinalFrag from './composite-final.frag';
+export entityVert from './entity.vert';
+export entityFrag from './entity.frag';
 export macrotileVert from './macrotile.vert';
 export macrotileFrag from './macrotile.frag';
 export tileChunkVert from './tile-chunk.vert';

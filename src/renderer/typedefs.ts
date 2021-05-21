@@ -117,6 +117,25 @@ export interface ITileMap {
     removeMapUpdateListener(listener: TileMapUpdateListener): void;
 }
 
+export enum EntityTextureLayer {
+    Color = 'color',
+    Material = 'material',
+}
+
+export interface IEntityMaterial {
+    pixelSize: vec2;
+    getTexture(layer: EntityTextureLayer): HTMLImageElement | HTMLCanvasElement | ImageBitmap | null;
+}
+
+export interface IEntityGeometryChunk {
+    vertices: vec3[];
+    uvs: vec2[];
+    normals: vec3[];
+    faces: number[][];
+    material: IEntityMaterial;
+    lights: PointLight[];
+}
+
 /** Abstract garden renderer interface. */
 export interface NetgardensRenderer {
     // TODO: lighting controls

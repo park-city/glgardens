@@ -13,6 +13,7 @@ import { TilesetMapping } from './tile-map-tileset';
 import { TileMap } from './tile-map';
 import { vec2 } from 'gl-matrix';
 import { Composite } from './composite';
+import { Entities } from './entities';
 
 export type WebGLGraphicsSettings = {
     useWebGL2?: boolean,
@@ -42,6 +43,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
     composite!: Composite;
     tilesetMapping!: TilesetMapping;
     tileMap!: TileMap;
+    entities!: Entities;
 
     constructor(context: IBackingContext, map: ITileMap, settings: WebGLGraphicsSettings) {
         this.backingContext = context;
@@ -55,12 +57,24 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
     }
     set map(map) {
         this._map = map;
-        this.deleteAllObjects();
+        this.deleteAllMapObjects();
+        this.initMapObjects();
+    }
+
+    private initMapObjects() {
+        this.tilesetMapping = new TilesetMapping(this.ctx, this.map);
+        this.tileMap = new TileMap(this.ctx, this.map, this.tilesetMapping);
+        if (this.entities) this.entities.tileMap = this.tileMap;
+    }
+
+    private deleteAllMapObjects() {
+        this.tilesetMapping?.dispose();
+        this.tileMap?.dispose();
     }
 
     private deleteAllObjects() {
-        this.tilesetMapping?.dispose();
-        this.tileMap?.dispose();
+        this.deleteAllMapObjects();
+        this.entities?.dispose();
     }
 
     private didInit = false;
@@ -135,9 +149,9 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
             getShared: this.getShared,
         };
 
-        this.tilesetMapping = new TilesetMapping(this.ctx, this.map);
-        this.tileMap = new TileMap(this.ctx, this.map, this.tilesetMapping);
         this.composite = new Composite(this.ctx);
+        this.initMapObjects();
+        this.entities = new Entities(this.ctx, this.tileMap);
         this.didInit = true;
     }
 
@@ -179,10 +193,12 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
 
         const ctx = this.beginFrame();
 
+        this.entities.update(ctx);
         this.tileMap.update(ctx);
 
         this.composite.begin(ctx);
         this.tileMap.render(ctx);
+        this.entities.render(ctx);
         this.composite.present(ctx);
     }
 
@@ -200,6 +216,6 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
     }
 
     dispose() {
-        this.deleteAllObjects();
+        this.deleteAllMapObjects();
     }
 }

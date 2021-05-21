@@ -486,9 +486,13 @@ export class TileMapChunk {
         const buffers = this.buffers!;
         buffers.vao.bind();
 
+        let isFirst = true;
         for (const renderBatch of this.tileRenderBatches) {
             if (this.uniformBuffers) {
-                tileChunkShader.bindUniformBlock('UChunk', this.uniformBuffers.chunk);
+                if (isFirst) {
+                    tileChunkShader.bindUniformBlock('UChunk', this.uniformBuffers.chunk);
+                    isFirst = false;
+                }
 
                 for (let i = 0; i < this.uniformBuffers.lighting.length; i++) {
                     const isFirst = i === 0;

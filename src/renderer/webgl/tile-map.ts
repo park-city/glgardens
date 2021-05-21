@@ -1,6 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from 'gl-matrix';
 import { Context, FrameContext } from './context';
-import { ITileMap, TileTypeId } from '../typedefs';
+import { ITileMap, PointLight, TileTypeId } from '../typedefs';
 import { distanceToBox, invSquareDistance, PlaneSubspace } from '../geom-utils';
 import { CHUNK_SIZE, MAX_TOTAL_POINT_LIGHTS, TileMapChunk } from './tile-map-chunk';
 import { TilesetMapping } from './tile-map-tileset';
@@ -24,17 +24,26 @@ type MapUniformBuffers = {
     lighting: GLUniformBuffer,
 };
 
+interface LitEntity {
+    position: vec3;
+    pointLights: PointLight[];
+    lightChunk?: TileMapChunk;
+    lightChunkDidUpdate(): void;
+}
+
 export class TileMap {
     ctx: Context;
     data: ITileMap;
     tilesetMapping: TilesetMapping;
 
-    chunks = new Map();
+    chunks = new Map<string, ChunkEntry>();
     uniformBuffers?: MapUniformBuffers;
 
     ambientLightRadiance = vec3.fromValues(0, 0, 0);
     sunLightDir = vec3.fromValues(0, 0, 1);
     sunLightRadiance = vec3.fromValues(0, 0, 0);
+
+    litEntities = new Map<unknown, LitEntity>();
 
     constructor(ctx: Context, data: ITileMap, tilesetMapping: TilesetMapping) {
         this.ctx = ctx;
@@ -53,8 +62,7 @@ export class TileMap {
     };
 
     private onTilesetUpdate = () => {
-        for (const _chunk of this.chunks.values()) {
-            const chunk = _chunk as ChunkEntry;
+        for (const chunk of this.chunks.values()) {
             if (chunk.chunk.isMissingTileTypes) {
                 chunk.chunk.buffersNeedUpdate = true;
             }
@@ -117,7 +125,7 @@ export class TileMap {
         for (let y = cy; y <= cy2; y++) {
             for (let x = cx; x <= cx2; x++) {
                 const key = TileMap.encodeChunkKey(x, y);
-                const chunk = this.chunks.get(key) as ChunkEntry | null;
+                const chunk = this.chunks.get(key);
                 if (chunk) chunk.chunk.buffersNeedUpdate = true;
             }
         }
@@ -125,7 +133,7 @@ export class TileMap {
 
     private markChunkAsFirstScreen(cx: number, cy: number) {
         const key = TileMap.encodeChunkKey(cx, cy);
-        const chunk = this.chunks.get(key) as ChunkEntry | null;
+        const chunk = this.chunks.get(key);
         if (chunk) {
             chunk.chunk.isFirstScreen = true;
         }
@@ -155,16 +163,35 @@ export class TileMap {
             chunk,
             lastUpdate: 0,
             lightingNeedsUpdate: false,
-        } as ChunkEntry);
+        });
     }
 
     // LIGHTING
 
+    addLitEntity(key: unknown, entity: LitEntity) {
+        this.litEntities.set(key, entity);
+        this.litEntityDidUpdateLights(entity);
+    }
+
+    deleteLitEntity(key: unknown) {
+        const entity = this.litEntities.get(key);
+        this.litEntities.delete(key);
+        if (entity) this.litEntityDidUpdateLights(entity);
+    }
+
+    litEntityDidUpdateLights(entity: LitEntity) {
+        this.chunkDidUpdateLights(
+            Math.floor(entity.position[0] / CHUNK_SIZE),
+            Math.floor(entity.position[1] / CHUNK_SIZE),
+        );
+    }
+
     chunkDidUpdateLights(x: number, y: number) {
+        if ((window as any).ngDebug) console.log(x, y);
         for (let dy = -CHUNK_LIGHTING_SAMPLE_RADIUS; dy <= CHUNK_LIGHTING_SAMPLE_RADIUS; dy++) {
             for (let dx = -CHUNK_LIGHTING_SAMPLE_RADIUS; dx <= CHUNK_LIGHTING_SAMPLE_RADIUS; dx++) {
                 const key = TileMap.encodeChunkKey(x + dx, y + dy);
-                const chunk = this.chunks.get(key) as ChunkEntry | null;
+                const chunk = this.chunks.get(key);
                 if (chunk) {
                     chunk.lightingNeedsUpdate = true;
                 }
@@ -172,50 +199,80 @@ export class TileMap {
         }
     }
 
+    shouldCullPointLight(light: PointLight, targetX: number, targetY: number) {
+        const radianceMag = Math.max(light.radiance[0], light.radiance[1], light.radiance[2]);
+        const epsilonDist = invSquareDistance(LIGHT_CULL_EPSILON / radianceMag);
+        const lightDistGround = distanceToBox(
+            targetX * CHUNK_SIZE,
+            targetY * CHUNK_SIZE,
+            (targetX + 1) * CHUNK_SIZE,
+            (targetY + 1) * CHUNK_SIZE,
+            light.pos[0],
+            light.pos[1],
+        );
+        return lightDistGround >= epsilonDist;
+    }
     getCulledPointLights(x: number, y: number, targetX: number, targetY: number) {
         const key = TileMap.encodeChunkKey(x, y);
-        const chunk = this.chunks.get(key) as ChunkEntry | null;
+        const chunk = this.chunks.get(key);
         if (!chunk) return [];
         const lights = [];
         for (const light of chunk.chunk.pointLights) {
-            const radianceMag = Math.max(light.radiance[0], light.radiance[1], light.radiance[2]);
-            const epsilonDist = invSquareDistance(LIGHT_CULL_EPSILON / radianceMag);
-            const lightDistGround = distanceToBox(
-                targetX * CHUNK_SIZE,
-                targetY * CHUNK_SIZE,
-                (targetX + 1) * CHUNK_SIZE,
-                (targetY + 1) * CHUNK_SIZE,
-                light.pos[0],
-                light.pos[1],
-            );
-            if (lightDistGround < epsilonDist) {
+            if (!this.shouldCullPointLight(light, targetX, targetY)) {
                 lights.push(light);
             }
         }
         return lights;
     }
 
-    updateChunkLighting(x: number, y: number) {
-        const key = TileMap.encodeChunkKey(x, y);
-        const chunk = this.chunks.get(key) as ChunkEntry | null;
-        if (!chunk) return;
-
-        chunk.chunk.externalPointLights.clear();
+    collectExternalLights(x: number, y: number, target: Set<PointLight>, isEntity: LitEntity | false) {
+        target.clear();
         let lights = 0;
+
+        outer:
+        for (const entity of this.litEntities.values()) {
+            if (isEntity && isEntity === entity) continue;
+            for (const light of entity.pointLights) {
+                if (lights > MAX_TOTAL_POINT_LIGHTS) break outer;
+                if (!this.shouldCullPointLight(light, x, y)) {
+                    target.add(light);
+                    lights++;
+                }
+            }
+        }
+
         outer:
         for (let dy = -CHUNK_LIGHTING_SAMPLE_RADIUS; dy <= CHUNK_LIGHTING_SAMPLE_RADIUS; dy++) {
             for (let dx = -CHUNK_LIGHTING_SAMPLE_RADIUS; dx <= CHUNK_LIGHTING_SAMPLE_RADIUS; dx++) {
-                if (dx === 0 && dy === 0) continue;
+                if (!isEntity && dx === 0 && dy === 0) continue;
                 if (lights > MAX_TOTAL_POINT_LIGHTS) break outer;
                 const chunkLights = this.getCulledPointLights(x + dx, y + dy, x, y);
                 for (const light of chunkLights) {
-                    chunk.chunk.externalPointLights.add(light);
+                    target.add(light);
                 }
                 lights += chunkLights.length;
             }
         }
+    }
+
+    updateChunkLighting(x: number, y: number) {
+        const key = TileMap.encodeChunkKey(x, y);
+        const chunk = this.chunks.get(key);
+        if (!chunk) return;
+
+        this.collectExternalLights(x, y, chunk.chunk.externalPointLights, false);
         chunk.chunk.updateLighting();
         chunk.lightingNeedsUpdate = false;
+
+        for (const entity of this.litEntities.values()) {
+            const cx = Math.floor(entity.position[0] / CHUNK_SIZE);
+            const cy = Math.floor(entity.position[1] / CHUNK_SIZE);
+            if (cx === x && cy === y) {
+                // entity is in this chunk
+                entity.lightChunk = chunk.chunk;
+                entity.lightChunkDidUpdate();
+            }
+        }
     }
 
     // RENDERING
@@ -333,7 +390,7 @@ export class TileMap {
                 didCreateAChunk = true;
             } else if (!hasChunk) continue;
 
-            const chunk = this.chunks.get(key)! as ChunkEntry;
+            const chunk = this.chunks.get(key)!;
             chunk.lastUpdate = Date.now();
             // TODO: invalidate macrotile cache if global lighting changed
             // TODO: maybe pass the global lighting here instead of in gl state above?
@@ -347,7 +404,7 @@ export class TileMap {
         // update chunk lighting
         for (const [x, y] of chunks) {
             const key = TileMap.encodeChunkKey(x, y);
-            const chunk = this.chunks.get(key) as ChunkEntry | null;
+            const chunk = this.chunks.get(key);
             if (!chunk) continue;
 
             if (chunk.lightingNeedsUpdate) {
@@ -390,7 +447,7 @@ export class TileMap {
 
         for (const [x, y] of chunks) {
             const key = TileMap.encodeChunkKey(x, y);
-            const chunk = this.chunks.get(key) as ChunkEntry | null;
+            const chunk = this.chunks.get(key);
             if (!chunk) continue;
             const didRender = chunk.chunk.render(ctx, batchState);
             if (didRender) screenIsEmpty = false;
