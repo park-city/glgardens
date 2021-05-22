@@ -11,7 +11,7 @@ import { initShaders } from './shaders';
 import { isWebGL2 } from './gl-utils';
 import { TilesetMapping } from './tile-map-tileset';
 import { TileMap } from './tile-map';
-import { vec2 } from 'gl-matrix';
+import { vec2, vec3 } from 'gl-matrix';
 import { Composite } from './composite';
 import { Entities } from './entities';
 
@@ -45,6 +45,12 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
     tileMap!: TileMap;
     entities!: Entities;
 
+    readonly lighting = {
+        ambientRadiance: vec3.create(),
+        sunDir: vec3.fromValues(0, 0, 1),
+        sunRadiance: vec3.create(),
+    };
+
     constructor(context: IBackingContext, map: ITileMap, settings: WebGLGraphicsSettings) {
         this.backingContext = context;
         this._map = map;
@@ -63,7 +69,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
 
     private initMapObjects() {
         this.tilesetMapping = new TilesetMapping(this.ctx, this.map);
-        this.tileMap = new TileMap(this.ctx, this.map, this.tilesetMapping);
+        this.tileMap = new TileMap(this.ctx, this.map, this.lighting, this.tilesetMapping);
         if (this.entities) this.entities.tileMap = this.tileMap;
     }
 

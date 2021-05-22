@@ -1,6 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from 'gl-matrix';
 import { Context, FrameContext } from './context';
-import { ITileMap, PointLight, TileTypeId } from '../typedefs';
+import { IGlobalLighting, ITileMap, PointLight, TileTypeId } from '../typedefs';
 import { distanceToBox, invSquareDistance, PlaneSubspace } from '../geom-utils';
 import { CHUNK_SIZE, MAX_TOTAL_POINT_LIGHTS, TileMapChunk } from './tile-map-chunk';
 import { TilesetMapping } from './tile-map-tileset';
@@ -39,15 +39,14 @@ export class TileMap {
     chunks = new Map<string, ChunkEntry>();
     uniformBuffers?: MapUniformBuffers;
 
-    ambientLightRadiance = vec3.fromValues(0, 0, 0);
-    sunLightDir = vec3.fromValues(0, 0, 1);
-    sunLightRadiance = vec3.fromValues(0, 0, 0);
+    lighting: IGlobalLighting;
 
     litEntities = new Map<unknown, LitEntity>();
 
-    constructor(ctx: Context, data: ITileMap, tilesetMapping: TilesetMapping) {
+    constructor(ctx: Context, data: ITileMap, lighting: IGlobalLighting, tilesetMapping: TilesetMapping) {
         this.ctx = ctx;
         this.data = data;
+        this.lighting = lighting;
         this.tilesetMapping = tilesetMapping;
 
         data.addMapUpdateListener(this.onMapUpdate);
@@ -105,9 +104,9 @@ export class TileMap {
 
         this.uniformBuffers.lighting.bind();
         this.uniformBuffers.lighting.setUniformData({
-            ambient_radiance: this.ambientLightRadiance,
-            sun_dir: this.sunLightDir,
-            sun_radiance: this.sunLightRadiance,
+            ambient_radiance: this.lighting.ambientRadiance,
+            sun_dir: this.lighting.sunDir,
+            sun_radiance: this.lighting.sunRadiance,
         });
     }
 
@@ -373,9 +372,9 @@ export class TileMap {
         if (this.uniformBuffers) {
             tileChunkShader.bindUniformBlock('UGlobalLighting', this.uniformBuffers.lighting);
         } else {
-            tileChunkShader.setUniform('u_gl_ambient_radiance', this.ambientLightRadiance);
-            tileChunkShader.setUniform('u_gl_sun_dir', this.sunLightDir);
-            tileChunkShader.setUniform('u_gl_sun_radiance', this.sunLightRadiance);
+            tileChunkShader.setUniform('u_gl_ambient_radiance', this.lighting.ambientRadiance);
+            tileChunkShader.setUniform('u_gl_sun_dir', this.lighting.sunDir);
+            tileChunkShader.setUniform('u_gl_sun_radiance', this.lighting.sunRadiance);
         }
 
         for (const [x, y] of chunks) {
@@ -437,9 +436,9 @@ export class TileMap {
             tileChunkShader.setUniform('u_proj', ctx.proj);
             tileChunkShader.setUniform('u_view', ctx.view);
             tileChunkShader.setUniform('u_camera_pos', ctx.camera.position);
-            tileChunkShader.setUniform('u_gl_ambient_radiance', this.ambientLightRadiance);
-            tileChunkShader.setUniform('u_gl_sun_dir', this.sunLightDir);
-            tileChunkShader.setUniform('u_gl_sun_radiance', this.sunLightRadiance);
+            tileChunkShader.setUniform('u_gl_ambient_radiance', this.lighting.ambientRadiance);
+            tileChunkShader.setUniform('u_gl_sun_dir', this.lighting.sunDir);
+            tileChunkShader.setUniform('u_gl_sun_radiance', this.lighting.sunRadiance);
         }
 
         let screenIsEmpty = true;

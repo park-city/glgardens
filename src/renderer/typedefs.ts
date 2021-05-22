@@ -136,11 +136,23 @@ export interface IEntityGeometryChunk {
     lights: PointLight[];
 }
 
+export interface IGlobalLighting {
+    ambientRadiance: vec3;
+    sunDir: vec3;
+    sunRadiance: vec3;
+}
+
 /** Abstract garden renderer interface. */
 export interface NetgardensRenderer {
-    // TODO: lighting controls
     camera: Camera;
     map: ITileMap;
     render(): void;
+
+    /**
+     * Frees resources used by this renderer.
+     * The renderer may no longer be usable after this.
+     */
     dispose(): void;
+
+    readonly lighting?: IGlobalLighting;
 }

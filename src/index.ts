@@ -249,12 +249,12 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
     };
 
     const traintestTiles = {
-        200: { frames: [[0, 0]] },
-        201: { frames: [[1, 0]] },
-        202: { frames: [[0, 1]] },
-        203: { frames: [[1, 1]] },
-        204: { frames: [[0, 2]] },
-        205: { frames: [[1, 2]] },
+        200: { frames: [[0, 0]], geometry: GeometryType.CubeBack },
+        201: { frames: [[1, 0]], geometry: GeometryType.CubeBack },
+        202: { frames: [[0, 1]], geometry: GeometryType.CubeBack },
+        203: { frames: [[1, 1]], geometry: GeometryType.CubeBack },
+        204: { frames: [[0, 2]], geometry: GeometryType.CubeBack },
+        205: { frames: [[1, 2]], geometry: GeometryType.CubeBack },
     };
     const traintest = {
         pixelSize: [images.traintestColor.width, images.traintestColor.height] as [number, number],
@@ -425,19 +425,19 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
             zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
         }
 
-        renderer.tileMap.ambientLightRadiance = vec3.fromValues(0, 0.05, 0.2);
-        // const sunCycleT = -5.7;
-        const sunCycleT = -8.7;
+        // renderer.lighting.ambientRadiance = vec3.fromValues(0, 0.05, 0.2);
+        renderer.lighting.ambientRadiance = vec3.fromValues(0, 0.5, 1.0);
+        const sunCycleT = -3.7;
         const sunZ = Math.cos(sunCycleT / 4);
-        renderer.tileMap.sunLightDir = vec3.normalize(vec3.create(), [
+        renderer.lighting.sunDir = vec3.normalize(vec3.create(), [
             -Math.sin(sunCycleT / 4),
             Math.sin(sunCycleT / 4),
             sunZ,
         ]);
         const sunR = Math.max(0, 1 - Math.exp(-7 * (sunZ + 0.5)));
-        renderer.tileMap.sunLightRadiance[0] = sunR * (6 * Math.max(0, sunZ) + 10);
-        renderer.tileMap.sunLightRadiance[1] = sunR * (15 * Math.max(0, sunZ) + 7);
-        renderer.tileMap.sunLightRadiance[2] = sunR * (25 * Math.max(0, sunZ));
+        renderer.lighting.sunRadiance[0] = sunR * (6 * Math.max(0, sunZ) + 10);
+        renderer.lighting.sunRadiance[1] = sunR * (15 * Math.max(0, sunZ) + 7);
+        renderer.lighting.sunRadiance[2] = sunR * (25 * Math.max(0, sunZ));
 
         if (!renderer.entities.getEntity('traintest')) {
             renderer.entities.createEntity('traintest', [data.traintestEntity]);

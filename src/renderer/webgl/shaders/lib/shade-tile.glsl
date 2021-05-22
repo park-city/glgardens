@@ -31,11 +31,11 @@ vec3 shade_tile(
 
     vec3 tangent = vec3(0.);
     if (abs(i_normal.x) > abs(i_normal.y)) {
+        // solve dot(normal, tangent) = 0 with tangent.y = 0 => nx nz + ny 0 + nz (-nx) = 0
+        tangent = normalize(vec3(i_normal.z, 0., -i_normal.x));
+    } else {
         // solve dot(normal, tangent) = 0 with tangent.x = 0 => nx 0 + ny nz + nz (-ny) = 0
         tangent = normalize(vec3(0., i_normal.z, -i_normal.y));
-    } else {
-        // with tangent.y = 0 => nx nz + ny 0 + nz (-nx) = 0
-        tangent = normalize(vec3(i_normal.z, 0., -i_normal.x));
     }
     vec3 binormal = cross(i_normal, tangent);
 

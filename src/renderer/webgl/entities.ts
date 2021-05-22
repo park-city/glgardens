@@ -67,9 +67,9 @@ export class Entities {
         } else {
             entityShader.setUniform('u_proj', ctx.proj);
             entityShader.setUniform('u_view', ctx.view);
-            entityShader.setUniform('u_gl_ambient_radiance', this.tileMap.ambientLightRadiance);
-            entityShader.setUniform('u_gl_sun_dir', this.tileMap.sunLightDir);
-            entityShader.setUniform('u_gl_sun_radiance', this.tileMap.sunLightRadiance);
+            entityShader.setUniform('u_gl_ambient_radiance', this.tileMap.lighting.ambientRadiance);
+            entityShader.setUniform('u_gl_sun_dir', this.tileMap.lighting.sunDir);
+            entityShader.setUniform('u_gl_sun_radiance', this.tileMap.lighting.sunRadiance);
         }
 
         for (const entity of this.entities.values()) {
