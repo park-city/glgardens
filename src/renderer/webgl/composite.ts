@@ -7,6 +7,7 @@ import { SHARED_QUAD } from './quad';
 
 type BloomSwap = {
     blitMipTarget: Texture2D,
+    buffer: GLFramebuffer,
     swap00: GLFramebuffer,
     swap01: GLFramebuffer,
     swap10: GLFramebuffer,
@@ -62,6 +63,7 @@ export class Composite {
 
                 this.bloomSwap = {
                     blitMipTarget,
+                    buffer: genFbo(),
                     swap00: genFbo(),
                     swap01: genFbo(),
                     swap10: genFbo(),
@@ -137,22 +139,32 @@ export class Composite {
             runBloomScale(this.bloomSwap.swap10, this.bloomSwap.swap11, 8 * ctx.viewportScale);
             runBloomScale(this.bloomSwap.swap20, this.bloomSwap.swap21, 16 * ctx.viewportScale);
 
-            this.composite.bind();
+            this.ctx.shaders.compositeBloomFinal!.bind();
+            this.ctx.shaders.compositeBloomFinal!.setUniform('u_alpha', [1 / 3, 0]);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.ONE, gl.ONE);
+            this.bloomSwap.swap00.bind();
+            this.bloomSwap.swap10.color[0].bind(0);
+            quad.draw(gl.TRIANGLE_STRIP, 0, 4);
+            this.bloomSwap.swap20.color[0].bind(0);
+            quad.draw(gl.TRIANGLE_STRIP, 0, 4);
 
+            this.bloomSwap.buffer.size[0] = this.bloomSwap.swap00.size[0];
+            this.bloomSwap.buffer.size[1] = this.bloomSwap.swap00.size[1];
+            this.bloomSwap.buffer.bind();
+            this.ctx.shaders.compositeBloomFinal!.setUniform('u_alpha', [0.4, 0.15]);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            this.bloomSwap.swap00.color[0].bind(0);
+            quad.draw(gl.TRIANGLE_STRIP, 0, 4);
+
+            this.composite.bind();
             if (this.ctx.params.debug?.showBloom) {
                 gl.clear(gl.COLOR_BUFFER_BIT);
             }
-
-            gl.enable(gl.BLEND);
             gl.blendFunc(gl.ONE, gl.ONE);
-            this.ctx.shaders.compositeBloomFinal!.bind();
-            this.ctx.shaders.compositeBloomFinal!.setUniform('u_alpha', 1 / 3);
-            this.bloomSwap.swap00.color[0].bind(0);
-            quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
-            this.bloomSwap.swap10.color[0].bind(0);
-            quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
-            this.bloomSwap.swap20.color[0].bind(0);
-            quad.draw(this.ctx.gl.TRIANGLE_STRIP, 0, 4);
+            this.ctx.shaders.compositeBloomFinal!.setUniform('u_alpha', [1, 0]);
+            this.bloomSwap.buffer.color[0].bind(0);
+            quad.draw(gl.TRIANGLE_STRIP, 0, 4);
 
             this.bloomSwap.swap00.invalidate();
             this.bloomSwap.swap10.invalidate();
