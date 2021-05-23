@@ -2,7 +2,7 @@ import { mat4, quat, vec3 } from 'gl-matrix';
 import { Context, FrameContext } from './context';
 import { GLBuffer, GLBufferType, GLUniformBuffer } from './gl-buffer';
 import { GLVertexArray } from './gl-vao';
-import { IEntityGeometryChunk, IEntityMaterial, PointLight } from '../typedefs';
+import { IEntity, IEntityGeometryChunk, IEntityMaterial, PointLight } from '../typedefs';
 import { UNIFORM_BLOCKS } from './shaders';
 import { EntityMaterial } from './entity-material';
 import { setNormalAlphaBlending } from './gl-utils';
@@ -36,7 +36,7 @@ export class Entity {
     ctx: Context;
     materialProvider: MaterialProvider;
 
-    geometryChunks: IEntityGeometryChunk[] = [];
+    data: IEntity;
 
     buffers?: EntityBuffers;
     uniformBuffers?: EntityUniformBuffers;
@@ -52,8 +52,9 @@ export class Entity {
     transformNeedsUpdate = true;
     lightingNeedsUpdate = false;
 
-    constructor(ctx: Context, materialProvider: MaterialProvider) {
+    constructor(ctx: Context, data: IEntity, materialProvider: MaterialProvider) {
         this.ctx = ctx;
+        this.data = data;
         this.materialProvider = materialProvider;
     }
 
@@ -70,6 +71,12 @@ export class Entity {
     set rotation(v) {
         this._rotation = v;
         this.transformNeedsUpdate = true;
+    }
+
+    updateMaterials() {
+        for (const chunk of this.renderChunks) {
+            chunk.material.update();
+        }
     }
 
     get transform(): mat4 {
@@ -105,7 +112,7 @@ export class Entity {
             indices: [] as number[],
         };
         this.renderChunks = [];
-        for (const chunk of this.geometryChunks) {
+        for (const chunk of this.data.chunks) {
             const offset = geomOut.positions.length / 3;
             for (let i = 0; i < chunk.vertices.length; i++) {
                 const vertex = chunk.vertices[i];
@@ -221,6 +228,10 @@ export class Entity {
         let isFirst = true;
         for (const renderChunk of this.renderChunks) {
             if (this.uniformBuffers) {
+                if (!this.lightChunk.uniformBuffers) {
+                    this.buffers.vao.unbind();
+                    return;
+                }
                 const lightBuffers = this.lightChunk.uniformBuffers!.lighting;
                 if (isFirst) {
                     entityShader.bindUniformBlock('UEntity', this.uniformBuffers.entity);

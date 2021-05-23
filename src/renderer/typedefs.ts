@@ -127,6 +127,16 @@ export interface IEntityMaterial {
     getTexture(layer: EntityTextureLayer): HTMLImageElement | HTMLCanvasElement | ImageBitmap | null;
 }
 
+export enum EntityLayer {
+    Map = 'map',
+    Ui = 'ui',
+}
+
+export interface IEntity {
+    chunks: IEntityGeometryChunk[];
+    layer: EntityLayer,
+}
+
 export interface IEntityGeometryChunk {
     vertices: vec3[];
     uvs: vec2[];
@@ -155,4 +165,7 @@ export interface NetgardensRenderer {
     dispose(): void;
 
     readonly lighting?: IGlobalLighting;
+
+    /** Returns the location on the ground plane for the given screen space location. */
+    getGroundLocation(screenX: number, screenY: number): vec2;
 }

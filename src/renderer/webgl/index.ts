@@ -11,9 +11,10 @@ import { initShaders } from './shaders';
 import { isWebGL2 } from './gl-utils';
 import { TilesetMapping } from './tile-map-tileset';
 import { TileMap } from './tile-map';
-import { vec2, vec3 } from 'gl-matrix';
+import { vec2, vec3, vec4 } from 'gl-matrix';
 import { Composite } from './composite';
 import { Entities } from './entities';
+import { PlaneSubspace } from '../geom-utils';
 
 export type WebGLGraphicsSettings = {
     useWebGL2?: boolean,
@@ -212,6 +213,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
         const ctx = this.beginFrame();
         this.composite.begin(ctx);
         this.tileMap.render(ctx);
+        this.entities.render(ctx);
         let size: [number, number] | undefined;
         let pixels: Float32Array | undefined;
         this.composite.present(ctx, (s, p) => {
@@ -223,5 +225,22 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
 
     dispose() {
         this.deleteAllMapObjects();
+    }
+
+    getGroundLocation(screenX: number, screenY: number): vec2 {
+        const px = 2 * screenX / this.backingContext.width - 1;
+        const py = 2 * screenY / this.backingContext.height - 1;
+        const plane = new PlaneSubspace(
+            vec4.create(),
+            [1, 0, 0],
+            [0, 1, 0],
+        );
+        const [p, d] = this.camera.projectionRay(
+            [this.backingContext.width, this.backingContext.height],
+            [px, -py],
+        );
+        const res = plane.rayIntersect(p, d);
+        if (!res) return [0, 0];
+        return [res[1][0], res[1][1]];
     }
 }

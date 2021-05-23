@@ -3,11 +3,15 @@ import { Texture2D } from './texture-allocator';
 import { EntityTextureLayer, IEntityMaterial } from '../typedefs';
 import { TextureFormat } from './typedefs';
 
+let noneTexture: HTMLCanvasElement | null = null;
 function createNoneTexture() {
-    const c = document.createElement('canvas');
-    c.width = c.height = 1;
-    c.getContext('2d')!.fillRect(0, 0, 1, 1);
-    return c;
+    if (!noneTexture) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 1;
+        c.getContext('2d')!.fillRect(0, 0, 1, 1);
+        noneTexture = c;
+    }
+    return noneTexture;
 }
 
 export class EntityMaterial {
@@ -38,8 +42,25 @@ export class EntityMaterial {
         }
     }
 
-    dispose() {
+    update() {
+        if (this.texColor) {
+            this.texColor.bind(0);
+            const source = this.source.getTexture(EntityTextureLayer.Color) || createNoneTexture();
+            this.texColor.update(0, source);
+        }
+        if (this.texMaterial) {
+            this.texMaterial.bind(2);
+            const source = this.source.getTexture(EntityTextureLayer.Material) || createNoneTexture();
+            this.texMaterial.update(0, source);
+        }
+    }
+
+    invalidate() {
         this.texColor?.dispose();
         this.texMaterial?.dispose();
+    }
+
+    dispose() {
+        this.invalidate();
     }
 }

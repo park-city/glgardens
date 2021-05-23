@@ -25,6 +25,8 @@ void main() {
 
     vec4 i_material_raw = texture(u_entity_material, v_uv);
 
+    out_tonemap = vec4(0, 0, 0, i_color.a);
+
     if (length(v_normal) > 0.1) {
         vec3 view_ray = get_view_ray();
         vec3 view_dir = normalize(-view_ray);

@@ -1,7 +1,7 @@
 // super hacky test page
 
 import {
-    BackingCanvas,
+    BackingCanvas, EntityLayer,
     EntityTextureLayer,
     GeometryType,
     NetgardensWebGLRenderer,
@@ -279,12 +279,15 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
         },
     };
     const traintestEntity = {
-        ...models.traintest,
-        material: traintestEntityMaterial,
-        lights: [{
-            pos: vec3.fromValues(0, 0.52, 0.82782),
-            radiance: vec3.fromValues(27, 24, 15),
+        chunks: [{
+            ...models.traintest,
+            material: traintestEntityMaterial,
+            lights: [{
+                pos: vec3.fromValues(0, 0.52, 0.82782),
+                radiance: vec3.fromValues(27, 24, 15),
+            }],
         }],
+        layer: EntityLayer.Map,
     };
 
     const delay = 1000;
@@ -406,6 +409,27 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
     const debugBarSettings = document.createElement('div');
     debugBar.appendChild(debugBarSettings);
 
+    const cursorCanvas = document.createElement('canvas');
+    cursorCanvas.width = cursorCanvas.height = 256;
+    const cursorCtx = cursorCanvas.getContext('2d')!;
+    const overlayEntity = {
+        chunks: [{
+            vertices: [[-0.2, -0.2, 0], [1.2, -0.2, 0], [1.2, 1.2, 0], [-0.2, 1.2, 0]] as vec3[],
+            uvs: [[0, 0], [1, 0], [1, 1], [0, 1]] as vec2[],
+            normals: [],
+            faces: [[0, 1, 2, 3]],
+            material: {
+                pixelSize: [256, 256] as vec2,
+                getTexture: (layer: EntityTextureLayer) => {
+                    if (layer === EntityTextureLayer.Color) return cursorCanvas;
+                    return null;
+                },
+            },
+            lights: [],
+        }],
+        layer: EntityLayer.Ui,
+    };
+
     let doLoopRender = true;
 
     let lastTime = Date.now();
@@ -440,7 +464,7 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
         renderer.lighting.sunRadiance[2] = sunR * (25 * Math.max(0, sunZ));
 
         if (!renderer.entities.getEntity('traintest')) {
-            renderer.entities.createEntity('traintest', [data.traintestEntity]);
+            renderer.entities.createEntity('traintest', data.traintestEntity);
         }
         {
             const train = renderer.entities.getEntity('traintest')!;
@@ -487,6 +511,44 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
             train.position[2] = 0.15;
             quat.fromEuler(train.rotation, 0, 0, pos[2]);
             train.transformNeedsUpdate = true;
+        }
+        if (!renderer.entities.getEntity('cursor')) {
+            renderer.entities.createEntity('cursor', overlayEntity);
+        }
+        {
+            const entity = renderer.entities.getEntity('cursor')!;
+            (entity as any).hframe = ((entity as any).hframe | 0) + 1;
+            const t = (entity as any).htime = ((entity as any).htime || 0) + dt;
+            if ((entity as any).hframe % 2 === 0) {
+                const h = Math.cos(t * 3) / 2 + 0.5 + 0.5 * Math.exp(-t * 10) - 4 * Math.exp(-t * 14);
+                const s = 256;
+                const dh = 1 / 7 * s - h * 20;
+                const dph = 32;
+                cursorCtx.globalAlpha = 1 - Math.exp(-t * 16);
+
+                cursorCtx.clearRect(0, 0, 256, 256);
+                cursorCtx.lineCap = 'square';
+                cursorCtx.beginPath();
+                cursorCtx.moveTo(dh + dph, dh);
+                cursorCtx.lineTo(dh, dh);
+                cursorCtx.lineTo(dh, dh + dph);
+                cursorCtx.moveTo(s - dh - dph, dh);
+                cursorCtx.lineTo(s - dh, dh);
+                cursorCtx.lineTo(s - dh, dh + dph);
+                cursorCtx.moveTo(s - dh - dph, s - dh);
+                cursorCtx.lineTo(s - dh, s - dh);
+                cursorCtx.lineTo(s - dh, s - dh - dph);
+                cursorCtx.moveTo(dh + dph, s - dh);
+                cursorCtx.lineTo(dh, s - dh);
+                cursorCtx.lineTo(dh, s - dh - dph);
+                cursorCtx.strokeStyle = '#fff';
+                cursorCtx.lineWidth = 32 * (1 + Math.exp(-t * 10));
+                cursorCtx.stroke();
+                cursorCtx.strokeStyle = '#000';
+                cursorCtx.lineWidth = 20 * (1 + Math.exp(-t * 10));
+                cursorCtx.stroke();
+                entity.updateMaterials();
+            }
         }
 
         renderer.camera.position = [15, 15, 4];
@@ -651,7 +713,24 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
         isDown = true;
     });
     backingCanvas.node.addEventListener('pointermove', e => {
-        if (!isDown) return;
+        if (!isDown) {
+            const entity = renderer.entities.getEntity('cursor');
+            if (entity) {
+                const pos = renderer.getGroundLocation(e.offsetX, e.offsetY);
+                const x = Math.floor(pos[0]);
+                const y = Math.floor(pos[1]);
+                if (x !== entity.position[0] || y !== entity.position[1]) {
+                    entity.position[0] = Math.floor(pos[0]);
+                    entity.position[1] = Math.floor(pos[1]);
+                    (entity as any).htime = 0;
+                    cursorCtx.clearRect(0, 0, 256, 256);
+                    entity.updateMaterials();
+                    entity.transformNeedsUpdate = true;
+                }
+            }
+
+            return;
+        }
         e.preventDefault();
         const dx = e.offsetX - lastPos[0];
         const dy = e.offsetY - lastPos[1];
@@ -661,21 +740,8 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
         mat4.invert(proj, proj);
         const lookDir = vec4.fromValues(0, 0, -1, 0);
         vec4.transformQuat(lookDir, lookDir, renderer.camera.rotation);
-        const projectToZeroPlane = (x: number, y: number) => {
-            const px = 2 * x / renderer.backingContext.width - 1;
-            const py = 2 * y / renderer.backingContext.height - 1;
-            const plane = new PlaneSubspace(
-                vec4.create(),
-                [1, 0, 0],
-                [0, 1, 0],
-            );
-            const [p, d] = renderer.camera.projectionRay([renderer.backingContext.width, renderer.backingContext.height], [px, -py]);
-            const res = plane.rayIntersect(p, d);
-            if (!res) return [0, 0];
-            return res[1];
-        };
-        const p1 = projectToZeroPlane(e.offsetX - dx, e.offsetY - dy);
-        const p2 = projectToZeroPlane(e.offsetX, e.offsetY);
+        const p1 = renderer.getGroundLocation(e.offsetX - dx, e.offsetY - dy);
+        const p2 = renderer.getGroundLocation(e.offsetX, e.offsetY);
         const ps = 1;
         pos[0] -= ps * (p2[0] - p1[0]);
         pos[1] -= ps * (p2[1] - p1[1]);

@@ -1,4 +1,4 @@
-import { IEntityGeometryChunk, IEntityMaterial } from '../typedefs';
+import { EntityLayer, IEntity, IEntityMaterial } from '../typedefs';
 import { EntityMaterial } from './entity-material';
 import { Context, FrameContext } from './context';
 import { Entity } from './entity';
@@ -24,9 +24,8 @@ export class Entities {
         return this.materials.get(mat)!;
     }
 
-    createEntity(key: unknown, chunks: IEntityGeometryChunk[]): Entity {
-        const entity = new Entity(this.ctx, this);
-        entity.geometryChunks = chunks;
+    createEntity(key: unknown, data: IEntity): Entity {
+        const entity = new Entity(this.ctx, data, this);
         this.entities.set(key, entity);
         this.tileMap.addLitEntity(key, entity);
         return entity;
@@ -73,10 +72,19 @@ export class Entities {
         }
 
         for (const entity of this.entities.values()) {
-            entity.render();
+            if (entity.data.layer === EntityLayer.Map) {
+                entity.render();
+            }
         }
 
         gl.disable(gl.CULL_FACE);
+        gl.disable(gl.DEPTH_TEST);
+
+        for (const entity of this.entities.values()) {
+            if (entity.data.layer === EntityLayer.Ui) {
+                entity.render();
+            }
+        }
     }
 
     dispose() {
