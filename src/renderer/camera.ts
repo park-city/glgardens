@@ -62,13 +62,12 @@ export class Camera {
         );
         const orthoRayDir = vec3.fromValues(0, 0, -1);
 
-        // FIXME: this one is wrong but i don't know how exactly
         const perspPlanePoint = vec3.fromValues(0, 0, -1);
         const perspY = Math.tan(this.fov);
-        const perspX = perspY / aspect;
+        const perspX = perspY * aspect;
         const perspRayDir = vec3.fromValues(
-            clipSpacePoint[0] * perspX,
-            -clipSpacePoint[1] * perspY,
+            clipSpacePoint[0] * perspX / 2,
+            -clipSpacePoint[1] * perspY / 2,
             -1,
         );
         vec3.normalize(perspRayDir, perspRayDir);

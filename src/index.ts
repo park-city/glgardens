@@ -524,9 +524,19 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
                 const s = 256;
                 const dh = 1 / 7 * s - h * 20;
                 const dph = 32;
+                cursorCtx.save();
                 cursorCtx.globalAlpha = 1 - Math.exp(-t * 16);
-
                 cursorCtx.clearRect(0, 0, 256, 256);
+
+                const cx = 128 + Math.cos(t) * 100;
+                const cy = 128 + Math.sin(t) * 100;
+                const g = cursorCtx.createRadialGradient(cx, cy, 0, cx, cy, 256);
+                g.addColorStop(0, '#fff');
+                g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                cursorCtx.strokeStyle = g;
+                cursorCtx.lineWidth = 8;
+                cursorCtx.strokeRect(1 / 7 * s, 1 / 7 * s, 5 / 7 * s, 5 / 7 * s);
+
                 cursorCtx.lineCap = 'square';
                 cursorCtx.beginPath();
                 cursorCtx.moveTo(dh + dph, dh);
@@ -547,6 +557,7 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
                 cursorCtx.strokeStyle = '#000';
                 cursorCtx.lineWidth = 20 * (1 + Math.exp(-t * 10));
                 cursorCtx.stroke();
+                cursorCtx.restore();
                 entity.updateMaterials();
             }
         }
