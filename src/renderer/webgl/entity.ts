@@ -217,6 +217,8 @@ export class Entity implements IRendererEntity {
         if (this.transformNeedsUpdate) {
             this.updateTransform();
         }
+
+        this.updateDomNode(ctx);
     }
 
     render() {
@@ -292,6 +294,46 @@ export class Entity implements IRendererEntity {
             }
         }
         this.buffers.vao.unbind();
+    }
+
+    updateDomNode(ctx: FrameContext) {
+        if (this.data.node) {
+            const layer = this.ctx.backing.getDomLayer(this.data.layer);
+            if (layer) {
+                if (this.data.node.parentNode !== layer) {
+                    this.data.node.parentNode?.removeChild(this.data.node);
+                    layer.appendChild(this.data.node);
+                }
+
+                const o = vec3.create();
+                const u = vec3.fromValues(Math.cos(-Math.PI / 4), Math.sin(-Math.PI / 4), 0);
+                const v = vec3.fromValues(Math.cos(Math.PI / 4), Math.sin(Math.PI / 4), 0);
+                vec3.scale(v, v, Math.sin(Math.PI / 6));
+                v[2] = -Math.cos(Math.PI / 6);
+                vec3.normalize(u, u);
+                vec3.normalize(v, v);
+                const m = mat4.create();
+                mat4.mul(m, this.transform, m);
+                mat4.mul(m, ctx.view, m);
+                mat4.mul(m, ctx.proj, m);
+                vec3.transformMat4(o, o, m);
+                vec3.transformMat4(u, u, m);
+                vec3.transformMat4(v, v, m);
+
+                // let 128px = 1 square tile diagonally
+                const pixelScale = 6.6733; // FIXME: where did this number come from?
+                const aspect = ctx.viewport[0] / ctx.viewport[1];
+                const a = (u[0] - o[0]) * pixelScale;
+                const b = -(u[1] - o[1]) / aspect * pixelScale;
+                const c = (v[0] - o[0]) * pixelScale;
+                const d = -(v[1] - o[1]) / aspect * pixelScale;
+                const e = (o[0] + 1) / 2 * ctx.viewport[0];
+                const f = (1 - (o[1] + 1) / 2) * ctx.viewport[1];
+
+                this.data.node.style.transformOrigin = '0 0 0';
+                this.data.node.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+            }
+        }
     }
 
     dispose() {

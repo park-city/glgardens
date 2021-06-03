@@ -194,7 +194,6 @@ export class TileMap {
     }
 
     chunkDidUpdateLights(x: number, y: number) {
-        if ((window as any).ngDebug) console.log(x, y);
         for (let dy = -CHUNK_LIGHTING_SAMPLE_RADIUS; dy <= CHUNK_LIGHTING_SAMPLE_RADIUS; dy++) {
             for (let dx = -CHUNK_LIGHTING_SAMPLE_RADIUS; dx <= CHUNK_LIGHTING_SAMPLE_RADIUS; dx++) {
                 const key = TileMap.encodeChunkKey(x + dx, y + dy);

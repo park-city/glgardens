@@ -23,6 +23,8 @@ export interface IBackingContext {
      */
     createContext(type: BackingContextType): boolean;
 
+    getDomLayer(name: string): HTMLElement | null;
+
     /** Graphics context. */
     readonly context: WebGL2RenderingContext | WebGLRenderingContext | CanvasRenderingContext2D | null;
 
@@ -135,6 +137,7 @@ export enum EntityLayer {
 export interface IEntity {
     chunks: IEntityGeometryChunk[];
     layer: EntityLayer,
+    node?: HTMLElement,
 }
 
 export interface IEntityGeometryChunk {

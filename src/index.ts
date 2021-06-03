@@ -126,6 +126,7 @@ const imagePaths = {
     traintestMaterial: 'traintest-material.png',
     traintestTrainColor: 'traintest-train-color.png',
     traintestTrainMaterial: 'traintest-train-material.png',
+    parkcity: 'parkcity.gif',
 };
 const images = (() => {
     const promises = [];
@@ -289,6 +290,25 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
         layer: EntityLayer.Map,
     };
 
+    const htmlTestNode = document.createElement('div');
+    const link = document.createElement('a');
+    link.target = '_blank';
+    link.rel = 'nofollow noreferrer';
+    link.href = 'https://park-city.club';
+    link.appendChild(images.parkcity);
+    htmlTestNode.appendChild(link);
+    Object.assign(images.parkcity.style, {
+        width: '88px',
+        imageRendering: 'pixelated',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'all',
+    });
+    const htmlTestEntity = {
+        chunks: [],
+        layer: EntityLayer.Map,
+        node: htmlTestNode,
+    };
+
     const delay = 1000;
     const dcSize = 32;
 
@@ -327,6 +347,7 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
             removeMapUpdateListener: (l: any) => mapListeners.delete(l),
         },
         traintestEntity,
+        htmlTestEntity,
     };
 }).then(data => {
     const backingCanvas = new BackingCanvas();
@@ -560,6 +581,12 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
                 entity.updateMaterials();
             }
         }
+        if (!renderer.entities.get('html_test')) {
+            const entity = renderer.entities.create('html_test', data.htmlTestEntity);
+            entity.position[0] = 7.5;
+            entity.position[1] = -3.5;
+            entity.position[2] = 0.5;
+        }
 
         renderer.camera.position = [15, 15, 4];
         renderer.camera.rotation = quat.fromEuler(quat.create(), -60, 0, -45);
@@ -718,11 +745,13 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
     }, { passive: false });
 
     backingCanvas.node.addEventListener('pointerdown', e => {
+        if (!(e.target instanceof HTMLCanvasElement)) return;
         e.preventDefault();
         lastPos = [e.offsetX, e.offsetY];
         isDown = true;
     });
     backingCanvas.node.addEventListener('pointermove', e => {
+        if (!(e.target instanceof HTMLCanvasElement)) return;
         if (!isDown) {
             const entity = renderer.entities.get('cursor');
             if (entity) {

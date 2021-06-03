@@ -149,6 +149,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
         gl.enable(gl.BLEND);
 
         this.ctx = {
+            backing: this.backingContext,
             gl,
             gl2,
             shaders: initShaders(gl, params),

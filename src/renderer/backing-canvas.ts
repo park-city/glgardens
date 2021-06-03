@@ -9,6 +9,7 @@ export class BackingCanvas implements IBackingContext {
     node: HTMLDivElement;
     canvas!: HTMLCanvasElement;
     context: WebGL2RenderingContext | WebGLRenderingContext | CanvasRenderingContext2D | null = null;
+    domLayers = new Map<string, HTMLDivElement>();
     maxPixelScale = 2;
 
     get width(): number {
@@ -51,6 +52,8 @@ export class BackingCanvas implements IBackingContext {
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         this.node.appendChild(this.canvas);
+        for (const layer of this.domLayers.values()) this.node.removeChild(layer);
+        this.domLayers.clear();
         this.didResize();
     }
 
@@ -74,6 +77,16 @@ export class BackingCanvas implements IBackingContext {
         }
 
         return !!this.context;
+    }
+
+    getDomLayer(name: string): HTMLDivElement {
+        if (!this.domLayers.has(name)) {
+            const div = document.createElement('div');
+            Object.assign(div.style, { position: 'absolute', inset: 0, pointerEvents: 'none' });
+            this.node.appendChild(div);
+            this.domLayers.set(name, div);
+        }
+        return this.domLayers.get(name)!;
     }
 
     isContextLost(): boolean {

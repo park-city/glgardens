@@ -2,6 +2,7 @@ import { mat4, vec2 } from 'gl-matrix';
 import { Shaders } from './shaders';
 import { Camera } from '../camera';
 import { WebGLContext } from './typedefs';
+import { IBackingContext } from '../typedefs';
 
 export type ContextParams = {
     /** If true, half-float textures can be used in FBOs. */
@@ -29,6 +30,7 @@ export type ContextParams = {
 };
 
 export type Context = {
+    backing: IBackingContext,
     gl: WebGLContext,
     gl2: WebGL2RenderingContext | null,
     shaders: Shaders,
