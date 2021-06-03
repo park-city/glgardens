@@ -52,7 +52,7 @@ export class NetgardensWebGLRenderer implements NetgardensRenderer {
         sunRadiance: vec3.create(),
     };
 
-    constructor(context: IBackingContext, map: ITileMap, settings: WebGLGraphicsSettings) {
+    constructor(context: IBackingContext, map: ITileMap, settings: WebGLGraphicsSettings = {}) {
         this.backingContext = context;
         this._map = map;
         this.camera = new Camera();

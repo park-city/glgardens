@@ -1,4 +1,4 @@
-import { vec2, vec3 } from 'gl-matrix';
+import { quat, vec2, vec3 } from 'gl-matrix';
 import { Camera } from './camera';
 
 /** Types of backing contexts. */
@@ -79,9 +79,9 @@ export interface TileType {
 /** Defines a tileset. */
 export interface ITileset {
     /** Raw texture size. Should generally be the same across different tilesets. */
-    readonly pixelSize: [number, number];
+    readonly pixelSize: vec2;
     /** Texture size in number of tiles. */
-    readonly textureSize: [number, number];
+    readonly textureSize: vec2;
     /** All tile types in this tile set. */
     readonly tileTypes: TileTypeId[];
 
@@ -92,7 +92,7 @@ export interface ITileset {
     getTileType(id: TileTypeId): TileType | null;
 }
 
-export type TileSetUpdateListener = () => void;
+export type TileSetUpdateListener = (specificUpdates?: ITileset[]) => void;
 export type TileMapUpdateListener = (x: number, y: number, width: number, height: number) => void;
 
 /** Defines a tile map. */
@@ -152,6 +152,18 @@ export interface IGlobalLighting {
     sunRadiance: vec3;
 }
 
+export interface IRendererEntity {
+    position: vec3;
+    rotation: quat;
+    updateMaterials(): void;
+}
+
+export interface IEntities {
+    create(key: unknown, entity: IEntity): IRendererEntity;
+    get(key: unknown): IRendererEntity | null;
+    delete(key: unknown): boolean;
+}
+
 /** Abstract garden renderer interface. */
 export interface NetgardensRenderer {
     camera: Camera;
@@ -164,6 +176,7 @@ export interface NetgardensRenderer {
      */
     dispose(): void;
 
+    readonly entities?: IEntities;
     readonly lighting?: IGlobalLighting;
 
     /** Returns the location on the ground plane for the given screen space location. */

@@ -35,7 +35,12 @@ export class Tileset {
     }
 
     get isAvailable() {
-        return this.texColor?.isAvailable && this.texNormal?.isAvailable && this.texMaterial?.isAvailable;
+        if (!this.texColor?.isAvailable) return false;
+        if (!this.texNormal?.isAvailable) return false;
+        if (!this.texMaterial?.isAvailable) return false;
+        if (this.data.pixelSize[0] !== this.texColor?.size[0]) return false;
+        if (this.data.pixelSize[1] !== this.texColor?.size[1]) return false;
+        return true;
     }
 
     ensureAvailable() {
@@ -45,9 +50,7 @@ export class Tileset {
     }
 
     allocate() {
-        this.texColor?.dispose();
-        this.texNormal?.dispose();
-        this.texMaterial?.dispose();
+        this.deallocate();
 
         const normalTexFormat = this.ctx.params.useFloatNormals
             ? TextureFormat.RGBA16F : TextureFormat.RGBA8;
@@ -118,6 +121,27 @@ export class TilesetMapping {
 
         for (const type of set.tileTypes) {
             this.mapping.set(type, id);
+        }
+    }
+
+    updateTileset(set: ITileset) {
+        for (let i = 0; i < this.tilesets.length; i++) {
+            const tileset = this.tilesets[i];
+            if (tileset.data === set) {
+                // will be reloaded on next render
+                tileset.deallocate();
+
+                let maybeDelete = new Set();
+                for (const [k, v] of this.mapping) {
+                    if (v === i) maybeDelete.add(k);
+                }
+                // reload mappings
+                for (const type of set.tileTypes) {
+                    maybeDelete.delete(type);
+                    this.mapping.set(type, i);
+                }
+                for (const type of maybeDelete) this.mapping.delete(type);
+            }
         }
     }
 

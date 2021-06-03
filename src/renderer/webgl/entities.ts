@@ -1,11 +1,11 @@
-import { EntityLayer, IEntity, IEntityMaterial } from '../typedefs';
+import { EntityLayer, IEntities, IEntity, IEntityMaterial } from '../typedefs';
 import { EntityMaterial } from './entity-material';
 import { Context, FrameContext } from './context';
 import { Entity } from './entity';
 import { TileMap } from './tile-map';
 import { setNormalAlphaBlending } from './gl-utils';
 
-export class Entities {
+export class Entities implements IEntities {
     ctx: Context;
     tileMap: TileMap;
     entities = new Map<unknown, Entity>();
@@ -24,22 +24,24 @@ export class Entities {
         return this.materials.get(mat)!;
     }
 
-    createEntity(key: unknown, data: IEntity): Entity {
+    create(key: unknown, data: IEntity): Entity {
         const entity = new Entity(this.ctx, data, this);
         this.entities.set(key, entity);
         this.tileMap.addLitEntity(key, entity);
         return entity;
     }
-    getEntity(key: unknown) {
-        return this.entities.get(key);
+    get(key: unknown) {
+        return this.entities.get(key) || null;
     }
-    deleteEntity(key: unknown) {
+    delete(key: unknown) {
         const entity = this.entities.get(key);
         this.entities.delete(key);
         this.tileMap.deleteLitEntity(key);
         if (entity) {
             entity.dispose();
+            return true;
         }
+        return false;
     }
 
     update(ctx: FrameContext) {

@@ -7,7 +7,6 @@ import {
     NetgardensWebGLRenderer,
     TileTextureLayer
 } from './renderer';
-import { PlaneSubspace } from './renderer/geom-utils';
 import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 
 document.body.style.background = '#123';
@@ -463,11 +462,11 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
         renderer.lighting.sunRadiance[1] = sunR * (15 * Math.max(0, sunZ) + 7);
         renderer.lighting.sunRadiance[2] = sunR * (25 * Math.max(0, sunZ));
 
-        if (!renderer.entities.getEntity('traintest')) {
-            renderer.entities.createEntity('traintest', data.traintestEntity);
+        if (!renderer.entities.get('traintest')) {
+            renderer.entities.create('traintest', data.traintestEntity);
         }
         {
-            const train = renderer.entities.getEntity('traintest')!;
+            const train = renderer.entities.get('traintest')!;
             const minX = 11.5;
             const minY = -2.5;
             const maxX = minX + 6;
@@ -512,11 +511,11 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
             quat.fromEuler(train.rotation, 0, 0, pos[2]);
             train.transformNeedsUpdate = true;
         }
-        if (!renderer.entities.getEntity('cursor')) {
-            renderer.entities.createEntity('cursor', overlayEntity);
+        if (!renderer.entities.get('cursor')) {
+            renderer.entities.create('cursor', overlayEntity);
         }
         {
-            const entity = renderer.entities.getEntity('cursor')!;
+            const entity = renderer.entities.get('cursor')!;
             (entity as any).hframe = ((entity as any).hframe | 0) + 1;
             const t = (entity as any).htime = ((entity as any).htime || 0) + dt;
             if ((entity as any).hframe % 2 === 0) {
@@ -725,7 +724,7 @@ Promise.all([images, mapData, models]).then(([images, getRawMapTile, models]) =>
     });
     backingCanvas.node.addEventListener('pointermove', e => {
         if (!isDown) {
-            const entity = renderer.entities.getEntity('cursor');
+            const entity = renderer.entities.get('cursor');
             if (entity) {
                 const pos = renderer.getGroundLocation(e.offsetX, e.offsetY);
                 const x = Math.floor(pos[0]);

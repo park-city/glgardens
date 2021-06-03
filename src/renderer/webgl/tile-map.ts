@@ -1,6 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from 'gl-matrix';
 import { Context, FrameContext } from './context';
-import { IGlobalLighting, ITileMap, PointLight, TileTypeId } from '../typedefs';
+import { IGlobalLighting, ITileMap, ITileset, PointLight, TileTypeId } from '../typedefs';
 import { distanceToBox, invSquareDistance, PlaneSubspace } from '../geom-utils';
 import { CHUNK_SIZE, MAX_TOTAL_POINT_LIGHTS, TileMapChunk } from './tile-map-chunk';
 import { TilesetMapping } from './tile-map-tileset';
@@ -60,11 +60,19 @@ export class TileMap {
         this.signalTileUpdates(x, y, w, h);
     };
 
-    private onTilesetUpdate = () => {
+    private onTilesetUpdate = (updates?: ITileset[]) => {
         for (const chunk of this.chunks.values()) {
             if (chunk.chunk.isMissingTileTypes) {
                 chunk.chunk.buffersNeedUpdate = true;
             }
+        }
+        if (updates) {
+            // tileset data has been updated!
+            for (const chunk of this.chunks.values()) {
+                // we need to update *all* chunks because we don't really know what exactly changed
+                chunk.chunk.buffersNeedUpdate = true;
+            }
+            for (const set of updates) this.tilesetMapping.updateTileset(set);
         }
     };
 

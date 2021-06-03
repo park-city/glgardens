@@ -2,7 +2,7 @@ import { mat4, quat, vec3 } from 'gl-matrix';
 import { Context, FrameContext } from './context';
 import { GLBuffer, GLBufferType, GLUniformBuffer } from './gl-buffer';
 import { GLVertexArray } from './gl-vao';
-import { IEntity, IEntityGeometryChunk, IEntityMaterial, PointLight } from '../typedefs';
+import { IEntity, IRendererEntity, IEntityMaterial, PointLight } from '../typedefs';
 import { UNIFORM_BLOCKS } from './shaders';
 import { EntityMaterial } from './entity-material';
 import { setNormalAlphaBlending } from './gl-utils';
@@ -32,7 +32,7 @@ interface MaterialProvider {
     getMaterial(mat: IEntityMaterial): EntityMaterial;
 }
 
-export class Entity {
+export class Entity implements IRendererEntity {
     ctx: Context;
     materialProvider: MaterialProvider;
 
