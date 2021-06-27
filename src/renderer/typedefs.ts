@@ -94,7 +94,16 @@ export interface ITileset {
     getTileType(id: TileTypeId): TileType | null;
 }
 
+/**
+ * Listens for tileset updates.
+ * If specific tilesets are passed, their textures will be force-reloaded.
+ * Otherwise, this will only fill in missing tiles.
+ */
 export type TileSetUpdateListener = (specificUpdates?: ITileset[]) => void;
+
+/**
+ * Listens for map updates. All tiles in the given region will be invalidated and reloaded.
+ */
 export type TileMapUpdateListener = (x: number, y: number, width: number, height: number) => void;
 
 /** Defines a tile map. */
@@ -130,22 +139,40 @@ export interface IEntityMaterial {
 }
 
 export enum EntityLayer {
+    /** Entities on this layer will be rendered on the map. */
     Map = 'map',
+    /** Entities on this layer will be rendered on top of the map and do not have depth testing. */
     Ui = 'ui',
 }
 
 export interface IEntity {
     chunks: IEntityGeometryChunk[];
     layer: EntityLayer,
+    /**
+     * An optional HTML element that will be displayed at the entity’s location.
+     * In the default rotation, it will be flat on the display.
+     */
     node?: HTMLElement,
 }
 
 export interface IEntityGeometryChunk {
+    /** A list of vertices. */
     vertices: vec3[];
+    /** A list of UV coordinates for each vertex. Indices should match the list of vertices. */
     uvs: vec2[];
+    /**
+     * A list of normal vectors for each vertex.
+     * If zero, lighting will be disabled.
+     */
     normals: vec3[];
+    /**
+     * A list of mesh faces.
+     * Each face is a list of at least three vertex indices that defines a convex polygon.
+     */
     faces: number[][];
+    /** The material that should be applied to this chunk. */
     material: IEntityMaterial;
+    /** Point lights in this chunk. */
     lights: PointLight[];
 }
 
@@ -158,6 +185,7 @@ export interface IGlobalLighting {
 export interface IRendererEntity {
     position: vec3;
     rotation: quat;
+    /** Reloads materials. Useful if some material contains an animated Canvas2D texture. */
     updateMaterials(): void;
 }
 

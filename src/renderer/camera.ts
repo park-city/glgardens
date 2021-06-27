@@ -2,7 +2,7 @@ import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 
 export class Camera {
     position = vec3.create();
-    rotation = quat.create();
+    rotation = quat.fromEuler(quat.create(), -60, 0, -45);
     clipNear = 0.1;
     clipFar = 200;
     perspective = 0;
